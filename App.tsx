@@ -1,117 +1,123 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
 import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import { Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import LoginScreen from './screens/LoginScreen';
+import HomeScreen from './screens/HomeScreen';
+import MapScreen from './screens/MapScreen';
+import CreateProjectScreen from './screens/CreateProjectScreen';
+import PhotoScreen from './screens/PhotoScreen';
+import ListProjectScreen from './screens/ListProjectScreen';
+import EditProjectScreen from './screens/EditProjectScreen';
+import ProjectImages from './screens/ProjectImages';
+import ActionsScreen from './screens/ActionsScreen';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+// https://tbg.comarbois.ma/projet_api
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+const Stack = createStackNavigator();
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+const HomeButton = () => {
+  const navigation = useNavigation();
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  const handleHome = async () => {
+    try {
+      navigation.navigate('Home');
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
+    <TouchableOpacity onPress={handleHome} style={styles.homeButton}>
+      <Image
+        source={require('./assets/home.png')} // Ensure you have a home-icon.png in the assets folder
+        style={styles.homeButtonImage}
       />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+    </TouchableOpacity>
+  );
+};
+
+function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator
+        initialRouteName="Login"
+        screenOptions={({ route }) => ({
+          headerStyle: {
+            backgroundColor: '#FF0000', // Red color for the header
+          },
+          headerTintColor: '#fff', // White color for the header text
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+          headerRight: () => {
+            // Only show the HomeButton if the current screen is not 'Home'
+            if (route.name !== 'Home') {
+              return <HomeButton />;
+            }
+          },
+        })}
+      >
+        <Stack.Screen 
+          name="Login" 
+          component={LoginScreen} 
+          options={{ title: '', headerShown: false }}
+        />
+        <Stack.Screen 
+          name="Home" 
+          component={HomeScreen} 
+          options={{ title: '' }}
+        />
+        <Stack.Screen 
+          name="TakePhoto" 
+          component={PhotoScreen} 
+          options={{ title: '' }} 
+        />
+        <Stack.Screen 
+          name="Map" 
+          component={MapScreen} 
+          options={{ title: '' }} 
+        />
+        <Stack.Screen 
+          name="CreateProject" 
+          component={CreateProjectScreen} 
+          options={{ title: '' }} 
+        />
+        <Stack.Screen 
+          name="List" 
+          component={ListProjectScreen} 
+          options={{ title: '' }} 
+        />
+        <Stack.Screen 
+          name="Edit" 
+          component={EditProjectScreen} 
+          options={{ title: '' }} 
+        />
+        <Stack.Screen 
+          name="IMG" 
+          component={ProjectImages} 
+          options={{ title: '' }} 
+        />
+        <Stack.Screen 
+          name="Actions" 
+          component={ActionsScreen} 
+          options={{ title: '' }} 
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  homeButton: {
+    marginRight: 10,
+    padding: 10,
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
+  homeButtonImage: {
+    width: 24,
+    height: 24,
   },
 });
 
