@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { Picker } from '@react-native-picker/picker'; // Import Picker component
 
+
+
+
+
+
 const EditProjectScreen = ({ route, navigation }) => {
   const { project } = route.params;
 
@@ -16,6 +21,7 @@ const EditProjectScreen = ({ route, navigation }) => {
   const [contactnom, setContactnom] = useState(project.contact_nom);
   const [contacttel, setContacttel] = useState(project.contact_tel);
   const [contactville, setContactville] = useState(project.contact_ville);
+  const [observation,setObservation] = useState(project.observation);
 
   // States to disable inputs
   const [isClientDisabled, setIsClientDisabled] = useState(!!project.nouveau);
@@ -45,12 +51,12 @@ const EditProjectScreen = ({ route, navigation }) => {
         rs,
         nouveau,
         typeprojet,
-        adresse,
         chantier,
         projet,
         contactnom,
         contacttel,
         contactville,
+        observation,
       }),
     })
       .then((response) => response.json())
@@ -80,23 +86,16 @@ const EditProjectScreen = ({ route, navigation }) => {
           autoCapitalize="none"
           editable={false} 
         />
-        <TextInput
+         <TextInput
           style={styles.input}
           value={rs}
           onChangeText={setRs}
           placeholder="Client"
           autoCapitalize="none"
-          editable={!isClientDisabled} // Disable input if isClientDisabled is true
+          editable={false} 
         />
-        <TextInput
-          style={styles.input}
-          value={nouveau}
-          onChangeText={setNouveau}
-          placeholder="Prospect"
-          autoCapitalize="none"
-          editable={!isProspectDisabled} // Disable input if isProspectDisabled is true
-        />
-        {/* Replace the TextInput for Type de projet with Picker */}
+        
+       
         <Picker
           style={styles.input}
           selectedValue={typeprojet}
@@ -105,13 +104,7 @@ const EditProjectScreen = ({ route, navigation }) => {
           <Picker.Item label="Appel offre" value="Appel Offre" />
           <Picker.Item label="Projet" value="Projet" />
         </Picker>
-        <TextInput
-          style={styles.input}
-          value={adresse}
-          onChangeText={setAdresse}
-          placeholder="Adresse"
-          autoCapitalize="none"
-        />
+        
         <TextInput
           style={styles.input}
           value={chantier}
@@ -146,6 +139,13 @@ const EditProjectScreen = ({ route, navigation }) => {
           onChangeText={setContactville}
           placeholder="Ville Contact"
           autoCapitalize="words"
+        />
+        <TextInput
+          style={styles.input}
+          value={observation}
+          onChangeText={setObservation}
+          placeholder="Observation"
+          autoCapitalize="sentences"
         />
       </ScrollView>
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>

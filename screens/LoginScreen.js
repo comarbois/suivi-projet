@@ -141,8 +141,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   logo: {
-    width: 24,
-    height: 24,
+    width: 40,
+    height: 40,
     marginRight: 12,
   },
   input: {

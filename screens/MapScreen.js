@@ -1,15 +1,7 @@
-import React, { Component } from 'react';
-import {
-  View,
-  Text,
-  SafeAreaView,
-  StyleSheet,
-  StatusBar,
-} from 'react-native';
+import React, {Component} from 'react';
+import {View, Text, SafeAreaView, StyleSheet, StatusBar} from 'react-native';
 
-import {
-  WebView
-} from 'react-native-webview'
+import {WebView} from 'react-native-webview';
 
 import html_script from './html_script';
 
@@ -23,45 +15,57 @@ class MapScreen extends Component {
     this.mapRef.current.injectJavaScript(`
       map.setView([${lat}, ${lon}], 10)
       L.marker([${lat}, ${lon}]).addTo(map)
-    `)
-  }
+    `);
+  };
+  
 
   render() {
     return (
       <>
         <StatusBar barStyle="dark-content" />
         <SafeAreaView style={styles.Container}>
-          <WebView ref={this.mapRef}  source={{html: html_script }} style={styles.Webview} originWhitelist={['*']} />
+          <WebView
+            ref={this.mapRef}
+            source={{html: html_script}}
+            style={styles.Webview}
+            originWhitelist={['*']}
+            javaScriptEnabled={true}
+            domStorageEnabled={true}
+            onError={syntheticEvent => {
+              const {nativeEvent} = syntheticEvent;
+              console.warn('WebView error: ', nativeEvent);
+            }}
+            onMessage={event => {
+              console.log(event.nativeEvent.data);
+            }}
+          />
         </SafeAreaView>
       </>
     );
   }
-  
-};
+}
 
 const styles = StyleSheet.create({
   Container: {
-    flex:1,
+    flex: 1,
     padding: 10,
-    backgroundColor: 'grey'
-  
+    backgroundColor: 'grey',
   },
   Webview: {
     flex: 2,
-    
   },
   ButtonArea: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center'
+    alignItems: 'center',
   },
 
   ButtonText: {
     color: 'white',
     fontWeight: 'bold',
     fontSize: 14,
-  }
+  },
 });
 
 export default MapScreen;
@@ -106,7 +110,7 @@ export default MapScreen;
 //           this._goToMyPosition(latitude, longitude);
 //         },
 //         (error) => console.log(error),
-//         { enableHighAccuracy: true, timeout: 20000, maximumAge: 1000 }
+//         { enableHighAccuracy: false, timeout: 20000, maximumAge: 1000 }
 //       );
 //     } else {
 //       console.log('Location permission denied');
@@ -123,7 +127,7 @@ export default MapScreen;
 //       </>
 //     );
 //   }
-  
+
 // };
 
 // const styles = StyleSheet.create({
@@ -131,11 +135,11 @@ export default MapScreen;
 //     flex:1,
 //     padding: 10,
 //     backgroundColor: 'grey'
-  
+
 //   },
 //   Webview: {
 //     flex: 2,
-    
+
 //   },
 //   ButtonArea: {
 //     flex: 1,
@@ -160,7 +164,6 @@ export default MapScreen;
 // export default MapScreen;
 
 //--------------
-
 
 // import React, { useEffect, useState } from 'react';
 // import { View, StyleSheet, PermissionsAndroid, Alert, Text } from 'react-native';
@@ -213,7 +216,7 @@ export default MapScreen;
 //         Alert.alert('Error', JSON.stringify(error));
 //       },
 //       {
-//         enableHighAccuracy: true,
+//         enableHighAccuracy: false,
 //         timeout: 20000,
 //         maximumAge: 1000,
 //         distanceFilter: 10,

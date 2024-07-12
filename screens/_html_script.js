@@ -21,8 +21,11 @@ const html_script = `
   </main>
   <script src="https://unpkg.com/leaflet@1.9.2/dist/leaflet.js" integrity="sha256-o9N1jGDZrf5tS+Ft4gbIK7mYMipq9lqpVJ91xHSyKhg=" crossorigin=""></script>
   <script>
-    // Initialize the map with a default view
-    const map = L.map('map').setView([33.589886, -7.603869], 13);
+    const initialLat = 33.589886;
+    const initialLon = -7.603869;
+
+    // Initialize the map with a default view of Casablanca
+    const map = L.map('map').setView([initialLat, initialLon], 13);
 
     // Add OpenStreetMap tiles to the map
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -33,19 +36,19 @@ const html_script = `
     // Function to add multiple markers
     function addMarkers(locations) {
       locations.forEach(location => {
-		console.log(location);
-		if(location.lat != null && location.lon != null){
-			L.marker([location.lat, location.lon])
-          	.addTo(map)
-          	.bindPopup(location.name)
-          	.openPopup();
-		}
-        
+        L.marker([location.lat, location.lon])
+          .addTo(map)
+          .bindPopup(location.name);
       });
     }
 
     // Expose addMarkers function to be called from React Native
     window.addMarkers = addMarkers;
+
+    // Keep the map centered on Casablanca
+    map.on('moveend', function() {
+      map.setView([initialLat, initialLon], 13);
+    });
   </script>
 </body>
 </html>

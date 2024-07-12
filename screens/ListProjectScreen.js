@@ -11,14 +11,18 @@ import {
   ScrollView,
   Modal,
   Linking,
-  Alert
+  Alert,
+  Platform
 } from "react-native";
 import Geolocation from 'react-native-get-location';
 import { Picker } from '@react-native-picker/picker';
 import { useAsyncStorage } from '@react-native-async-storage/async-storage';
+import {useIsFocused} from '@react-navigation/native';
+
 
 
 const ListProjectScreen = ({ route, navigation }) => {
+  
   const [value, setValue] = useState(0);
   useEffect(() => console.log(' value est '+value), [value]);
   const { getItem, setItem } = useAsyncStorage('@storage_key');
@@ -30,18 +34,16 @@ const ListProjectScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchText, setSearchText] = useState('');
-  const [searchField, setSearchField] = useState('');
+  const [searchField, setSearchField] = useState('projet');
   const [showModal, setShowModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState({});
   const [sortField, setSortField] = useState('');
   const [sortOrder, setSortOrder] = useState('asc');
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
+  const isFocused = useIsFocused();
   
-  useEffect(() => {
-    readItemFromStorage();
-  }, []);
-
+ 
   useEffect(() => {
     // Fetch location using Geolocation
     Geolocation.getCurrentPosition({
@@ -55,10 +57,14 @@ const ListProjectScreen = ({ route, navigation }) => {
       .catch((error) => {
         console.error(error);
         // Handle error if location fetching fails
-      });
-
-    fetchProjects(); // Call fetchProjects when latitude and longitude are fetched
+      }).finally(() => {
+        readItemFromStorage();
+        setLoading(false);
+      }); 
   }, []);
+
+
+  
 
   useEffect(() => {
     if (latitude !== null && longitude !== null) {
@@ -67,14 +73,21 @@ const ListProjectScreen = ({ route, navigation }) => {
   }, [latitude, longitude]);
 
   const fetchProjects = () => {
+    if(latitude === null || longitude === null) {
+      Alert.alert('Erreur', 'La récupération de la position n\'est pas disponible')
+      navigation.navigate('Home');
+      return;
+    }
+    
     setLoading(true);
     getItem().then((userId) => {
       if (!userId) {
         setLoading(false);
         return;
       }
-      // fetch(`https://tbg.comarbois.ma/projet_api/api/projet/listprojet.php?userId=${userId}`)
-      fetch(`https://tbg.comarbois.ma/projet_api/api/projet/listprojet.php?userId=${userId}`)
+
+      
+      fetch(`https://tbg.comarbois.ma/projet_api/api/projet/listprojet.php?userId=${userId}&q=${searchText}&type=${searchField}`)
         .then((response) => {
           if (!response.ok) {
             throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -82,6 +95,8 @@ const ListProjectScreen = ({ route, navigation }) => {
           return response.json();
         })
         .then((json) => {
+          console.log(json[0].adresse);
+          
           if (!Array.isArray(json)) {
             throw new Error("Invalid data format");
           }
@@ -127,27 +142,20 @@ const ListProjectScreen = ({ route, navigation }) => {
   }
 
   const handleSearch = () => {
-    if (searchText.trim() === '') {
-      handleReload();
-    } else {
-      const filteredData = data.filter((item) => {
-        return item[searchField]?.toString().toLowerCase().includes(searchText.toLowerCase());
-      });
-      setData(filteredData);
-    }
+    
+      fetchProjects();
+    
   };
 
-  const handleReload = () => {
-    setLoading(true);
-    setError(null);
-
-    fetchProjects();
-  };
+  
 
   const handleProjectPress = (project) => {
     setSelectedProject(project);
     setShowModal(true);
   };
+  function numberWithCommas(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  }
 
   const handleEditProject = (project) => {
     navigation.replace('Edit', { project });
@@ -164,15 +172,15 @@ const ListProjectScreen = ({ route, navigation }) => {
   };
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Radius of the earth in km
-    const dLat = deg2rad(lat2 - lat1); // deg2rad below
+    const R = 6371; 
+    const dLat = deg2rad(lat2 - lat1); 
     const dLon = deg2rad(lon2 - lon1);
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c; // Distance in km
+    const distance = R * c; 
     return distance;
   };
 
@@ -182,7 +190,8 @@ const ListProjectScreen = ({ route, navigation }) => {
 
   const handleNearbyProjects = () => {
     if (!latitude || !longitude) {
-      Alert.alert('Location Error', 'Cannot fetch nearby projects. Please enable location services.');
+      Alert.alert('Erreur', 'La récupération de la position n\'est pas disponible');
+      navigation.navigate('Home');
       return;
     }
 
@@ -213,6 +222,9 @@ const ListProjectScreen = ({ route, navigation }) => {
               <Text style={styles.cardTitle}>{item.projet}</Text>
               <Text style={styles.cardText}>{getRsOrNouveau(item)}</Text>
               <Text style={styles.cardText}>{item.adresse}</Text>
+              <Text style={[styles.cardTitle, {fontSize: 13}]}>{numberWithCommas(item.montant)}</Text>
+
+             
               <Text style={styles.cardText}>{getFormattedDate(item.dateCreate)}</Text>
               <View style={styles.cardActions}>
                 <TouchableOpacity style={styles.cardButton} onPress={() => handleEditProject(item)}>
@@ -232,7 +244,8 @@ const ListProjectScreen = ({ route, navigation }) => {
               <View style={styles.cardContent}>
                 <Text style={styles.cardTitle}>{nextItem.projet}</Text>
                 <Text style={styles.cardText}>{getRsOrNouveau(nextItem)}</Text>
-                <Text style={styles.cardText}>{nextItem.adresse}</Text>
+                <Text style={styles.cardText}>{nextItem.adresse} </Text>
+                <Text style={[styles.cardTitle, {fontSize: 13}]}>{numberWithCommas(item.montant)}</Text>
                 <Text style={styles.cardText}>{getFormattedDate(nextItem.dateCreate)}</Text>
                 <View style={styles.cardActions}>
                   <TouchableOpacity style={styles.cardButton} onPress={() => handleEditProject(nextItem)}>
@@ -369,7 +382,7 @@ const ListProjectScreen = ({ route, navigation }) => {
           </View>
         </View>
       </Modal>
-      <TouchableOpacity style={styles.nearbyButton} onPress={handleNearbyProjects}>
+        <TouchableOpacity style={styles.nearbyButton} onPress={handleNearbyProjects}>
           <Text style={styles.nearbyButtonText}>A proximité</Text>
         </TouchableOpacity>
     </View>
@@ -500,7 +513,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 8,
     padding: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 0,
     paddingBottom: 16,
   },
@@ -520,6 +533,7 @@ const styles = StyleSheet.create({
   modalText: {
     fontSize: 16,
     marginBottom: 6,
+    width: "65%",
   },
   modalButtonContainer: {
     flexDirection: 'row',

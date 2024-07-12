@@ -12,6 +12,9 @@ import ListProjectScreen from './screens/ListProjectScreen';
 import EditProjectScreen from './screens/EditProjectScreen';
 import ProjectImages from './screens/ProjectImages';
 import ActionsScreen from './screens/ActionsScreen';
+import ItinirairesScreen from './screens/ItinirairesScreen';
+import AgendaScreen from './screens/AgendaScreen';
+import MapScreen2 from './screens/MapScreen2';
 
 
 // https://tbg.comarbois.ma/projet_api
@@ -32,7 +35,7 @@ const HomeButton = () => {
   return (
     <TouchableOpacity onPress={handleHome} style={styles.homeButton}>
       <Image
-        source={require('./assets/home.png')} // Ensure you have a home-icon.png in the assets folder
+        source={require('./assets/home.png')} 
         style={styles.homeButtonImage}
       />
     </TouchableOpacity>
@@ -77,7 +80,7 @@ function App() {
         />
         <Stack.Screen 
           name="Map" 
-          component={MapScreen} 
+          component={MapScreen2} 
           options={{ title: '' }} 
         />
         <Stack.Screen 
@@ -105,6 +108,20 @@ function App() {
           component={ActionsScreen} 
           options={{ title: '' }} 
         />
+        <Stack.Screen 
+          name="Itiniraires" 
+          component={ItinirairesScreen} 
+          options={{ title: '' }}
+        />
+        <Stack.Screen 
+          name="Agenda" 
+          component={AgendaScreen} 
+          options={{ title: '' }}
+          />
+       
+
+
+
       </Stack.Navigator>
     </NavigationContainer>
   );

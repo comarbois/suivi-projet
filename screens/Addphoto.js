@@ -18,9 +18,10 @@ import { Picker } from '@react-native-picker/picker';
 import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import Geolocation from 'react-native-get-location';
 import { useAsyncStorage } from '@react-native-async-storage/async-storage';
+import { useIsFocused } from '@react-navigation/native';
 
 
-const Addphoto = (props) => {
+const Addphoto = ({navigation, route}) => {
   const [value, setValue] = useState(0);
   const { getItem, setItem } = useAsyncStorage('@storage_key');
   const readItemFromStorage = async () => {
@@ -28,6 +29,8 @@ const Addphoto = (props) => {
     setValue(item);
   };
   const {projectId } = route.params;
+
+
   const [client, setClient] = useState('');
   const [nouveau, setNouveau] = useState('');
   const [projet, setProjet] = useState('');
@@ -46,10 +49,13 @@ const Addphoto = (props) => {
   const [existingProjects, setExistingProjects] = useState([]);
   const [selectedExistingProject, setSelectedExistingProject] = useState('');
   const cameraRef = useRef(null);
+  const isFocused = useIsFocused();
 
   useEffect(() => {
+    console.log('Project ID:');
     readItemFromStorage();
   }, []);
+
 
   useEffect(() => {
     const requestCameraPermission = async () => {
@@ -69,6 +75,30 @@ const Addphoto = (props) => {
 
   useEffect(() => {
     fetchExistingProjects();
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      setShow(false);
+    }
+    setLoading(true);
+    Geolocation.getCurrentPosition({
+      enableHighAccuracy: false,
+      timeout: 15000,
+    })
+      .then(location => {
+        setLatitude(location.latitude);
+        setLongitude(location.longitude);
+      })
+      .catch(error => {
+        console.error(error);
+        
+        Linking.sendIntent('android.settings.LOCATION_SOURCE_SETTINGS');
+        navigation.navigate(-1);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   const fetchExistingProjects = async () => {
@@ -105,7 +135,7 @@ const Addphoto = (props) => {
   const confirmPhoto = async () => {
     try {
       const location = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
+        enableHighAccuracy: false,
         timeout: 15000,
       });
       setLatitude(`${location.latitude}`);
@@ -142,7 +172,7 @@ const Addphoto = (props) => {
       latitude,
       longitude,
       photos: confirmedPhotos,
-      projetType: 'existing', // Set project type to "existing"
+      projetType: 'existing', 
       selectedExistingProject,
     };
 

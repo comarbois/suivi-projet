@@ -15,7 +15,7 @@ const HomeScreen = ({ route, navigation }) => {
     try {
       await AsyncStorage.removeItem('@storage_key');
     } catch (e) {
-      // remove error
+    
     }
 
     console.log('Done.');
@@ -67,23 +67,26 @@ const HomeScreen = ({ route, navigation }) => {
 
       <View style={styles.row}>
       <TouchableOpacity style={styles.button} onPress={handleTakePhoto}>
-          <Image source={require('../assets/prendrephoto.jpg')} style={styles.buttonImage} />
+          <Image source={require('../assets/prendrephoto.png')} style={styles.buttonImage} />
           <Text style={styles.buttonText}>Geolocalisation</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} onPress={handleViewMap}>
+      <TouchableOpacity disabled  style={[styles.button, {position:'relative'}]} onPress={handleViewMap}>
+          <View style={{position:'absolute', width:"125%" , height:'140%', backgroundColor:'#20212457', zIndex:100, borderRadius:5}}>
+
+          </View>
           <Image source={require('../assets/map.png')} style={styles.buttonImage} />
           <Text style={styles.buttonText}>Map</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.row}>
-      <TouchableOpacity style={styles.button} onPress={handleTakePhoto}>
+      <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Itiniraires')}>
           <Image source={require('../assets/itineraires.png')} style={styles.buttonImage} />
           <Text style={styles.buttonText}>Itineraires</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} onPress={handleViewMap}>
+        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Agenda')}>
           <Image source={require('../assets/Calendrier.png')} style={styles.buttonImage} />
           <Text style={styles.buttonText}>Calendrier</Text>
         </TouchableOpacity>

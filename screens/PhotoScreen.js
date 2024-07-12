@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -12,14 +12,19 @@ import {
   Modal,
   FlatList,
   Image,
+  Linking,
 } from 'react-native';
-import { RNCamera } from 'react-native-camera';
-import { Picker } from '@react-native-picker/picker';
-import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
+import {RNCamera} from 'react-native-camera';
+import {Picker} from '@react-native-picker/picker';
+import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
 import Geolocation from 'react-native-get-location';
-import { useAsyncStorage } from '@react-native-async-storage/async-storage';
+import {useAsyncStorage} from '@react-native-async-storage/async-storage';
+import {Dropdown} from 'react-native-element-dropdown';
+import {ActivityIndicator} from 'react-native-paper';
+import {set} from 'date-fns';
+import {useIsFocused} from '@react-navigation/native';
 
-const SearchablePicker = ({ data, selectedValue, onValueChange }) => {
+const SearchablePicker = ({data, selectedValue, onValueChange}) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [filteredData, setFilteredData] = useState(data);
@@ -30,15 +35,15 @@ const SearchablePicker = ({ data, selectedValue, onValueChange }) => {
     setModalVisible(true);
   };
 
-  const filterData = (text) => {
-    const filtered = data.filter((item) =>
-      item.societe.toLowerCase().includes(text.toLowerCase())
+  const filterData = text => {
+    const filtered = data.filter(item =>
+      item.societe.toLowerCase().includes(text.toLowerCase()),
     );
     setFilteredData(filtered);
     setSearchText(text);
   };
 
-  const selectItem = (item) => {
+  const selectItem = item => {
     onValueChange(item.client);
     setModalVisible(false);
   };
@@ -48,7 +53,7 @@ const SearchablePicker = ({ data, selectedValue, onValueChange }) => {
       <TouchableOpacity style={styles.pickerTouchable} onPress={openModal}>
         <Text style={styles.pickerText}>
           {selectedValue
-            ? data.find((item) => item.client === selectedValue)?.societe
+            ? data.find(item => item.client === selectedValue)?.societe
             : 'Choisir Client'}
         </Text>
       </TouchableOpacity>
@@ -63,12 +68,11 @@ const SearchablePicker = ({ data, selectedValue, onValueChange }) => {
           />
           <FlatList
             data={filteredData}
-            keyExtractor={(item) => item.client.toString()}
-            renderItem={({ item }) => (
+            keyExtractor={item => item.client.toString()}
+            renderItem={({item}) => (
               <TouchableOpacity
                 onPress={() => selectItem(item)}
-                style={styles.item}
-              >
+                style={styles.item}>
                 <Text>{item.societe}</Text>
               </TouchableOpacity>
             )}
@@ -79,9 +83,9 @@ const SearchablePicker = ({ data, selectedValue, onValueChange }) => {
     </View>
   );
 };
-const PhotoScreen = (props) => {
+const PhotoScreen = ({route, navigation}) => {
   const [value, setValue] = useState(0);
-  const { getItem, setItem } = useAsyncStorage('@storage_key');
+  const {getItem, setItem} = useAsyncStorage('@storage_key');
   const readItemFromStorage = async () => {
     const item = await getItem();
     setValue(item);
@@ -104,12 +108,25 @@ const PhotoScreen = (props) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [existingProjects, setExistingProjects] = useState([]);
-  const [selectedExistingProject, setSelectedExistingProject] = useState('');
+  const [selectedExistingProject, setSelectedExistingProject] = useState(0);
   const cameraRef = useRef(null);
+  const projectId = route.params?.projectId ?? 0;
+  const isFocused = useIsFocused();
+  const [adresse, setAdresse] = useState('');
 
   useEffect(() => {
+    console.log('projext', projectId);
     readItemFromStorage();
   }, []);
+
+  useEffect(() => {
+    if (value > 0 && projectId == 0) {
+      fetchExistingProjects();
+    } else {
+      setProjetType('existing');
+      setSelectedExistingProject(projectId);
+    }
+  }, [value]);
 
   useEffect(() => {
     const requestCameraPermission = async () => {
@@ -127,17 +144,14 @@ const PhotoScreen = (props) => {
     requestCameraPermission();
   }, []);
 
-  useEffect(() => {
-    if (projetType === 'existing') {
-      fetchExistingProjects();
-    }
-  }, [projetType]);
-
   const fetchExistingProjects = async () => {
     try {
-      // const response = await fetch('https://tbg.comarbois.ma/projet_api/api/projet/Getprojects.php');
+      setLoading(true);
 
-      const response = await fetch('https://tbg.comarbois.ma/projet_api/api/projet/Getprojects.php');
+      const response = await fetch(
+        'https://tbg.comarbois.ma/projet_api/api/projet/listprojet.php?userId=' +
+          value,
+      );
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
@@ -145,13 +159,51 @@ const PhotoScreen = (props) => {
       setExistingProjects(data);
     } catch (error) {
       console.error('Error fetching existing projects:', error);
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Fetch location using Geolocation
+    Geolocation.getCurrentPosition({
+      enableHighAccuracy: true,
+      timeout: 15000,
+    })
+      .then((location) => {
+        setLatitude(location.latitude);
+        setLongitude(location.longitude);
+      })
+      .catch((error) => {
+        console.error(error);
+        // Handle error if location fetching fails
+      })
+  }, []);
+
+  useEffect(() => {
+    if (!latitude && !longitude) {
+      setLoading(true);
+     
+    } else {
+      setLoading(false);
+      console.log('latitude:', latitude, 'longitude:', longitude);
+      fetch(`https://nominatim.openstreetmap.org/search.php?q=${latitude},${longitude}&polygon_geojson=1&format=json&accept-language=fr`)
+          .then(response => response.json())
+          .then(data => {
+            
+            setAdresse(data[0]?.display_name);
+          })
+          .catch(error => {
+            console.error('Error:', error);
+      });
+    }
+    
+  }, [latitude, longitude]);
 
   const takePicture = async () => {
     if (cameraRef.current) {
       try {
-        const options = { quality: 0.5, base64: true };
+        const options = {quality: 0.5, base64: true};
         const data = await cameraRef.current.takePictureAsync(options);
         setPhoto(data.uri);
       } catch (error) {
@@ -167,17 +219,6 @@ const PhotoScreen = (props) => {
   };
 
   const confirmPhoto = async () => {
-    try {
-      const location = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 15000,
-      });
-      setLatitude(`${location.latitude}`);
-      setLongitude(`${location.longitude}`);
-    } catch (error) {
-      console.error('Failed to get location:', error);
-    }
-
     if (photo) {
       try {
         const response = await fetch(photo);
@@ -196,11 +237,18 @@ const PhotoScreen = (props) => {
     }
   };
 
-  const deletePhoto = (uri) => {
-    setConfirmedPhotos(confirmedPhotos.filter((photo) => photo !== uri));
+  const deletePhoto = uri => {
+    setConfirmedPhotos(confirmedPhotos.filter(photo => photo !== uri));
   };
 
   const handleSubmit = async () => {
+
+    if(latitude == null || longitude == null){
+      Alert.alert('Erreur', 'Veuillez activer la localisation GPS');
+      navigation.replace("Home")
+      return;
+    }
+
     const data = {
       value,
       client,
@@ -213,7 +261,9 @@ const PhotoScreen = (props) => {
       projetType,
       projet: projetType === 'new' ? projet : '',
       chantier: projetType === 'new' ? chantier : '',
-      selectedExistingProject: projetType === 'existing' ? selectedExistingProject : '',
+      selectedExistingProject:
+        projetType === 'existing' ? selectedExistingProject : '',
+      adresse,
     };
 
     try {
@@ -222,14 +272,17 @@ const PhotoScreen = (props) => {
         'Content-Type': 'application/json',
       };
 
-      const response = await fetch('https://tbg.comarbois.ma/projet_api/api/projet/ProjetDet.php', {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(data),
-      });
+      const response = await fetch(
+        'https://tbg.comarbois.ma/projet_api/api/projet/ProjetDet.php',
+        {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(data),
+        },
+      );
 
       const responseData = await response.json();
-      console.log(responseData);
+      
 
       if (responseData.status === 'success') {
         Alert.alert('Succès', 'Le projet a été enregistré avec succès');
@@ -241,6 +294,7 @@ const PhotoScreen = (props) => {
         setChantier('');
         setObservation('');
         setConfirmedPhotos([]);
+        navigation.replace('List');
       } else {
         Alert.alert('Erreur', "Erreur lors de l'enregistrement du projet");
       }
@@ -251,21 +305,21 @@ const PhotoScreen = (props) => {
   };
 
   useEffect(() => {
-    fetch("https://tbg.comarbois.ma/projet_api/api/projet/Getclients.php")
-      .then((response) => {
+    fetch('https://tbg.comarbois.ma/projet_api/api/projet/Getclients.php')
+      .then(response => {
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
         return response.json();
       })
-      .then((json) => {
+      .then(json => {
         if (!Array.isArray(json)) {
-          throw new Error("Invalid data format");
+          throw new Error('Invalid data format');
         }
         setData(json);
         setLoading(false);
       })
-      .catch((error) => {
+      .catch(error => {
         setError(error.message);
         setLoading(false);
       });
@@ -274,184 +328,206 @@ const PhotoScreen = (props) => {
   const shouldShowOtherInputs = () => {
     return (projetType && clientType) || showInputs;
   };
-  const handleClientTypeChange = (type) => {
+  const handleClientTypeChange = type => {
     // Reset client and nouveau fields when switching client type
     setClient('');
     setNouveau('');
     setClientType(type);
   };
-  const handleProjetTypeChange = (type) => {
-      setProjet('');
-      setChantier('');
-      setObservation('');
-      setSelectedExistingProject('');
-      setProjetType(type);
+  const handleProjetTypeChange = type => {
+    setProjet('');
+    setChantier('');
+    setObservation('');
+    setSelectedExistingProject('');
+    setProjetType(type);
   };
-
 
   return (
     <View style={styles.container}>
-      {showInputs ? (
-        <View style={styles.inputContainer}>
-          <Text style={styles.title}>Details Projet</Text>
-          <Text style={styles.text}>{`${latitude}`}</Text>
-          <Text style={styles.text}>{`${longitude}`}</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color="red" />
+      ) : (
+        <>
+          {showInputs ? (
+            <View style={styles.inputContainer}>
+              <Text style={styles.title}>Details Projet</Text>
+              <Text style={styles.text}>{`${latitude}`}</Text>
+              <Text style={styles.text}>{`${longitude}`}</Text>
 
-          <View style={styles.pickerContainer}>
-            <TouchableOpacity
-              style={[
-                styles.pickerButton,
-                projetType === 'existing' && styles.selectedPickerButton,
-              ]}
-              onPress={() => handleProjetTypeChange('existing')}
-            >
-              <Text style={styles.pickerButtonText}>Projet Existant</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.pickerButton,
-                projetType === 'new' && styles.selectedPickerButton,
-              ]}
-              onPress={() => handleProjetTypeChange('new')}
-            >
-              <Text style={styles.pickerButtonText}>Nouveau Projet</Text>
-            </TouchableOpacity>
-          </View>
-          {projetType === 'existing' ? (
-            <View style={styles.pickerContainer}>
-              <Text>Choisir Projet Existant:</Text>
-              <Picker
-                selectedValue={selectedExistingProject}
-                onValueChange={(itemValue) => setSelectedExistingProject(itemValue)}
-                style={{ height: 50, width: 200 }}
-              >
-                <Picker.Item label="" value="" />
-                {existingProjects.map((project) => (
-                  <Picker.Item key={project.id} label={project.projet} value={project.id} />
-                ))}
-              </Picker>
-            </View>
-          ) : (
-            <>
               <View style={styles.pickerContainer}>
                 <TouchableOpacity
                   style={[
                     styles.pickerButton,
-                    clientType === 'client' && styles.selectedPickerButton,
+                    projetType === 'existing' && styles.selectedPickerButton,
                   ]}
-                  onPress={() => handleClientTypeChange('client')}
-                >
-                  <Text style={styles.pickerButtonText}>Client</Text>
+                  disabled={projectId > 0}
+                  onPress={() => handleProjetTypeChange('existing')}>
+                  <Text style={styles.pickerButtonText}>Projet Existant</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[
                     styles.pickerButton,
-                    clientType === 'prospect' && styles.selectedPickerButton,
-                    clientType === 'prospect' && { backgroundColor: 'orange' }, 
+                    projetType === 'new' && styles.selectedPickerButton,
                   ]}
-                  onPress={() => handleClientTypeChange('prospect')}
-                >
-                  <Text style={styles.pickerButtonText}>Nouveau</Text>
+                  disabled={projectId > 0}
+                  onPress={() => handleProjetTypeChange('new')}>
+                  <Text style={styles.pickerButtonText}>Nouveau Projet</Text>
                 </TouchableOpacity>
               </View>
-              {clientType === 'client' && (
+              {projetType === 'existing' ? (
+                projectId == 0 && (
+                  <Dropdown
+                    data={existingProjects}
+                    labelField={'designation'}
+                    valueField={'id'}
+                    value={selectedExistingProject}
+                    onChange={item =>
+                      setSelectedExistingProject(item.id.toString())
+                    }
+                    placeholder={'Selectioner un projet'}
+                    style={styles.dropdown}
+                    search
+                    searchField="designation"
+                    searchPlaceholder="Chercher un projet"
+                    inputSearchStyle={{color: 'black'}}
+                  />
+                )
+              ) : (
                 <>
-                 <View style={styles.row}>
-          <Text style={styles.label}>Client/Prospect:</Text>
-          <SearchablePicker
-            data={data}
-            selectedValue={client}
-            onValueChange={(value) => {
-              console.log(`Selected client: ${value}`);
-              setClient(value);
-            }}
-          />
-        </View>
+                  <View style={styles.pickerContainer}>
+                    <TouchableOpacity
+                      style={[
+                        styles.pickerButton,
+                        clientType === 'client' && styles.selectedPickerButton,
+                      ]}
+                      onPress={() => handleClientTypeChange('client')}>
+                      <Text style={styles.pickerButtonText}>Client</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.pickerButton,
+                        clientType === 'prospect' &&
+                          styles.selectedPickerButton,
+                        clientType === 'prospect' && {
+                          backgroundColor: 'orange',
+                        },
+                      ]}
+                      onPress={() => handleClientTypeChange('prospect')}>
+                      <Text style={styles.pickerButtonText}>Nouveau</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {clientType === 'client' && (
+                    <>
+                      <View style={styles.row}>
+                        <Text style={styles.label}>Client/Prospect:</Text>
+                        <SearchablePicker
+                          data={data}
+                          selectedValue={client}
+                          onValueChange={value => {
+                            console.log(`Selected client: ${value}`);
+                            setClient(value);
+                          }}
+                        />
+                      </View>
+                    </>
+                  )}
+                  {clientType === 'prospect' && (
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Nouveau"
+                      value={nouveau}
+                      onChangeText={text => setNouveau(text)}
+                    />
+                  )}
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Projet"
+                    onChangeText={setProjet}
+                    value={projet}
+                  />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Chantier"
+                    onChangeText={text => setChantier(text)}
+                    value={chantier}
+                  />
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Observation"
+                    onChangeText={text => setObservation(text)}
+                    value={observation}
+                  />
                 </>
               )}
-              {clientType === 'prospect' && (
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Nouveau"
-                  value={nouveau}
-                  onChangeText={(text) => setNouveau(text)}
-                />
-              )}
-              <TextInput
-                style={styles.textInput}
-                placeholder="Projet"
-                onChangeText={setProjet}
-                value={projet}
-              />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Chantier"
-                onChangeText={(text) => setChantier(text)}
-                value={chantier}
-              />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Observation"
-                onChangeText={(text) => setObservation(text)}
-                value={observation}
-              />
-            </>
-          )}
-          <ScrollView style={styles.photoContainer}>
-            {confirmedPhotos.map((uri, index) => (
-              <View key={index} style={styles.photoWrapper}>
-                <Image source={{ uri }} style={styles.confirmedPhoto} />
-                <TouchableOpacity onPress={() => deletePhoto(uri)} style={styles.deleteButton}>
-                  <Text style={styles.deleteButtonText}>✕</Text>
+              <ScrollView style={styles.photoContainer}>
+                {confirmedPhotos.map((uri, index) => (
+                  <View key={index} style={styles.photoWrapper}>
+                    <Image source={{uri}} style={styles.confirmedPhoto} />
+                    <TouchableOpacity
+                      onPress={() => deletePhoto(uri)}
+                      style={styles.deleteButton}>
+                      <Text style={styles.deleteButtonText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+              <View style={styles.buttonContainerr}>
+                <TouchableOpacity
+                  onPress={() => setShowInputs(false)}
+                  style={[styles.button]}>
+                  <Text style={styles.buttonText}>Ajouter Photos</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSubmit}
+                  style={[styles.buttonConfirm]}>
+                  <Text style={styles.buttonText}>Enregistrer</Text>
                 </TouchableOpacity>
               </View>
-            ))}
-          </ScrollView>
-          <View style={styles.buttonContainerr}>
-            <TouchableOpacity onPress={() => setShowInputs(false)} style={[styles.button]}>
-              <Text style={styles.buttonText}>Ajouter Photos</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleSubmit} style={[styles.buttonConfirm]}>
-              <Text style={styles.buttonText}>Enregistrer</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : (
-        <View style={styles.cameraContainer}>
-          {photo ? (
-            <Image source={{ uri: photo }} style={styles.preview} />
+            </View>
           ) : (
-            <RNCamera
-              ref={cameraRef}
-              style={styles.camera}
-              type={RNCamera.Constants.Type.back}
-              flashMode={RNCamera.Constants.FlashMode.auto}
-              androidCameraPermissionOptions={{
-                title: 'Permission to use camera',
-                message: 'We need your permission to use your camera',
-                buttonPositive: 'Ok',
-                buttonNegative: 'Cancel',
-              }}
-              captureAudio={false}
-            />
+            <View style={styles.cameraContainer}>
+              {photo ? (
+                <Image source={{uri: photo}} style={styles.preview} />
+              ) : (
+                <RNCamera
+                  ref={cameraRef}
+                  style={styles.camera}
+                  type={RNCamera.Constants.Type.back}
+                  flashMode={RNCamera.Constants.FlashMode.auto}
+                  androidCameraPermissionOptions={{
+                    title: 'Permission to use camera',
+                    message: 'We need your permission to use your camera',
+                    buttonPositive: 'Ok',
+                    buttonNegative: 'Cancel',
+                  }}
+                  captureAudio={false}
+                />
+              )}
+              <View style={styles.buttonContainer}>
+                {photo ? (
+                  <>
+                    <TouchableOpacity
+                      onPress={cancelPicture}
+                      style={styles.button}>
+                      <Text style={styles.buttonText}>Annuler</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={confirmPhoto}
+                      style={styles.buttonConfirm}>
+                      <Text style={styles.buttonText}>Confirmer Photo</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity
+                    onPress={takePicture}
+                    style={styles.circularButton}>
+                    <Text style={styles.circularButtonText}></Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
           )}
-          <View style={styles.buttonContainer}>
-            {photo ? (
-              <>
-                <TouchableOpacity onPress={cancelPicture} style={styles.button}>
-                  <Text style={styles.buttonText}>Annuler</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={confirmPhoto} style={styles.buttonConfirm}>
-                  <Text style={styles.buttonText}>Confirmer Photo</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity onPress={takePicture} style={styles.circularButton}>
-                <Text style={styles.circularButtonText}></Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
+        </>
       )}
     </View>
   );
@@ -486,6 +562,17 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     marginVertical: 5,
+  },
+  dropdown: {
+    width: '95%',
+    height: 50,
+    backgroundColor: 'transparent',
+    borderColor: 'gray',
+    borderWidth: 0.5,
+    borderRadius: 5,
+    marginBottom: 10,
+    padding: 5,
+    color: 'black',
   },
   confirmedPhoto: {
     width: '100%',
@@ -584,13 +671,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  selectedPickerButton:{
+  selectedPickerButton: {
     backgroundColor: 'green',
   },
   pickerButtonText: {
     fontSize: 14,
   },
-   
+
   pickerTouchable: {
     paddingVertical: 12,
   },

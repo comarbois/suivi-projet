@@ -13,6 +13,7 @@ const ActionsScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [selectedDateRealisee, setSelectedDateRealisee] = useState(false);
   const [newAction, setNewAction] = useState({
     ACTION: '',
     lieu: '',
@@ -191,7 +192,7 @@ const ActionsScreen = ({ route, navigation }) => {
                 setNewAction({ ...newAction, ACTION: itemValue })
               }
             >
-              <Picker.Item label="" value="" />
+              <Picker.Item label="_Selectioner une action __" value="" />
               <Picker.Item label="Prospecter" value="Prospecter" />
               <Picker.Item label="Appeler" value="Appeler" />
               <Picker.Item label="Visiter" value="Visiter" />
@@ -214,7 +215,7 @@ const ActionsScreen = ({ route, navigation }) => {
             />
             <Text style={styles.label}>Date Prevue:</Text>
             <TouchableOpacity style={styles.input} onPress={() => setShowDatePrevuePicker(true)}>
-              <Text>{newAction.datePrevue.toDateString()}</Text>
+              <Text>{newAction.datePrevue.toLocaleDateString()}</Text>
             </TouchableOpacity>
             {showDatePrevuePicker && (
               <DateTimePicker
@@ -229,9 +230,10 @@ const ActionsScreen = ({ route, navigation }) => {
                 }}
               />
             )}
-            <Text style={styles.label}>Date Realise:</Text>
+
+            <Text style={styles.label}>Date Realisee:</Text>
             <TouchableOpacity style={styles.input} onPress={() => setShowDateRealiseePicker(true)}>
-              <Text>{newAction.dateRealisee.toDateString()}</Text>
+              <Text>{selectedDateRealisee ? newAction.dateRealisee.toLocaleDateString() : ''}</Text>
             </TouchableOpacity>
             {showDateRealiseePicker && (
               <DateTimePicker
@@ -240,12 +242,14 @@ const ActionsScreen = ({ route, navigation }) => {
                 display="default"
                 onChange={(event, selectedDate) => {
                   setShowDateRealiseePicker(false);
+                  setSelectedDateRealisee(true);
                   if (selectedDate) {
                     setNewAction({ ...newAction, dateRealisee: selectedDate });
                   }
                 }}
               />
             )}
+            
             <TextInput
               style={styles.input}
               placeholder="Observation"
@@ -298,10 +302,11 @@ const styles = StyleSheet.create({
   },
   labelContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     marginBottom: 10,
   },
   label: {
+    textAlign: 'left',
     fontWeight: 'bold',
     color:'black',
   },
@@ -380,10 +385,11 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
-    borderBottomWidth: 1,
-    borderBottomColor: 'gray',
+    borderWidth: 1,
+    borderColor: 'gray',
     marginBottom: 10,
     padding: 10,
+    borderRadius: 5,
   },
   modalButtons: {
     flexDirection: 'row',
