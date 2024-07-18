@@ -1,5 +1,4 @@
 const html_script = `
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22,7 +21,7 @@ const html_script = `
   <script src="https://unpkg.com/leaflet@1.9.2/dist/leaflet.js" integrity="sha256-o9N1jGDZrf5tS+Ft4gbIK7mYMipq9lqpVJ91xHSyKhg=" crossorigin=""></script>
   <script>
     // Initialize the map with a default view
-    const map = L.map('map').setView([33.589886, -7.603869], 13);
+    const map = L.map('map').setView([33.589886, -7.603869], 10);
 
     // Add OpenStreetMap tiles to the map
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -30,18 +29,29 @@ const html_script = `
       attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
 
+    // Initialize a LayerGroup to manage markers
+    let markersLayer = L.layerGroup().addTo(map);
+
     // Function to add multiple markers
     function addMarkers(locations) {
+      console.log("Adding markers:", locations);
+      // Clear existing markers by removing the LayerGroup
+      markersLayer.clearLayers();
+
       locations.forEach(location => {
-		console.log(location);
-		if(location.lat != null && location.lon != null){
-			L.marker([location.lat, location.lon])
-          	.addTo(map)
-          	.bindPopup(location.name)
-          	.openPopup();
-		}
-        
+        if (location.lat != null && location.lon != null) {
+          const wazeUrl = \`https://www.waze.com/ul?ll=\${location.lat},\${location.lon}&navigate=yes\`;
+          const googleMapsUrl = \`https://www.google.com/maps/search/?api=1&query=\${location.lat},\${location.lon}\`;
+          const marker = L.marker([location.lat, location.lon])
+            .bindPopup(\`<b>\${location.name}</b><br>\${location.client}<br><a href="\${wazeUrl}" target="_blank">Waze</a> 
+            <a href="\${googleMapsUrl}" style="margin-left:50px" target="_blank">Google Maps</a>
+            \`)
+            .openPopup();
+          markersLayer.addLayer(marker);
+          console.log("Added marker:", marker);
+        }
       });
+      console.log("Markers added.");
     }
 
     // Expose addMarkers function to be called from React Native

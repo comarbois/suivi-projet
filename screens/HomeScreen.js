@@ -71,10 +71,10 @@ const HomeScreen = ({ route, navigation }) => {
           <Text style={styles.buttonText}>Geolocalisation</Text>
         </TouchableOpacity>
 
-      <TouchableOpacity disabled  style={[styles.button, {position:'relative'}]} onPress={handleViewMap}>
-          <View style={{position:'absolute', width:"125%" , height:'140%', backgroundColor:'#20212457', zIndex:100, borderRadius:5}}>
+      <TouchableOpacity   style={[styles.button, {position:'relative'}]} onPress={handleViewMap}>
+          {/* <View style={{position:'absolute', width:"125%" , height:'140%', backgroundColor:'#20212457', zIndex:100, borderRadius:5}}>
 
-          </View>
+          </View> */}
           <Image source={require('../assets/map.png')} style={styles.buttonImage} />
           <Text style={styles.buttonText}>Map</Text>
         </TouchableOpacity>
