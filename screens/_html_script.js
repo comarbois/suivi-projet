@@ -33,8 +33,27 @@ const html_script = `
       attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
 
+    const projectIcon = L.icon({
+      iconUrl: 'https:tbg.comarbois.ma/images/appel-marker.png', // Replace with the path to your project icon
+      iconSize: [25, 41], // size of the icon
+      iconAnchor: [12, 41], // point of the icon which will correspond to marker's location
+      popupAnchor: [1, -34], // point from which the popup should open relative to the iconAnchor
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.2/dist/images/marker-shadow.png', // shadow image
+      shadowSize: [41, 41] // size of the shadow
+    });
+
+    const clientIcon = L.icon({
+      iconUrl: 'https:tbg.comarbois.ma/images/projet-marker.png', // Replace with the path to your client icon
+      iconSize: [25, 41], // size of the icon
+      iconAnchor: [12, 41], // point of the icon which will correspond to marker's location
+      popupAnchor: [1, -34], // point from which the popup should open relative to the iconAnchor
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.2/dist/images/marker-shadow.png', // shadow image
+      shadowSize: [41, 41] // size of the shadow
+    });
+
     // Function to add multiple markers
     function addMarkers(locations) {
+      
       locations.forEach(location => {
         L.marker([location.lat, location.lon])
           .addTo(map)

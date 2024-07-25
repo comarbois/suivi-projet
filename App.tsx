@@ -15,6 +15,7 @@ import ActionsScreen from './screens/ActionsScreen';
 import ItinirairesScreen from './screens/ItinirairesScreen';
 import AgendaScreen from './screens/AgendaScreen';
 import MapScreen2 from './screens/MapScreen2';
+import GeoLocationCC from './screens/GeoLocationCC';
 
 
 // https://tbg.comarbois.ma/projet_api
@@ -78,6 +79,12 @@ function App() {
           component={PhotoScreen} 
           options={{ title: '' }} 
         />
+        <Stack.Screen 
+          name="GeoLocationCC" 
+          component={GeoLocationCC} 
+          options={{ title: '' }} 
+        />
+
         <Stack.Screen 
           name="Map" 
           component={MapScreen2} 

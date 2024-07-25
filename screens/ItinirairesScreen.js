@@ -16,7 +16,7 @@ import {
   Alert,
   ToastAndroid,
 } from 'react-native';
-import { useAsyncStorage } from '@react-native-async-storage/async-storage';
+import AsyncStorage, { useAsyncStorage } from '@react-native-async-storage/async-storage';
 import { set } from 'date-fns';
 import { se } from 'date-fns/locale';
 
@@ -93,6 +93,8 @@ const ItinirairesScreen = () => {
         return response.json();
       })
       .then(json => {
+       
+    
         if (!Array.isArray(json)) {
           throw new Error('Invalid data format');
         }
@@ -102,6 +104,7 @@ const ItinirairesScreen = () => {
       })
       .catch(error => {
         ToastAndroid.show('Erreur de system', ToastAndroid.SHORT);
+        console.log(error);
         setLoading(false);
       });
   };
@@ -123,9 +126,8 @@ const ItinirairesScreen = () => {
 
   useEffect(() => {
     const readItemFromStorage = async () => {
-      const item = await getItem();
-      setValue(item);
-     
+      const user = JSON.parse(await AsyncStorage.getItem('user'));
+      setValue(user.id);
     };
     readItemFromStorage();
   

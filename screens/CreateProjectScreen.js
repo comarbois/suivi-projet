@@ -17,7 +17,7 @@ import {
   Linking,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import {useAsyncStorage} from '@react-native-async-storage/async-storage';
+import AsyncStorage, {useAsyncStorage} from '@react-native-async-storage/async-storage';
 import Geolocation from 'react-native-get-location';
 import {ActivityIndicator} from 'react-native-paper';
 
@@ -86,8 +86,8 @@ const CreateProjectScreen = props => {
   useEffect(() => console.log(' value est ' + value), [value]);
   const {getItem, setItem} = useAsyncStorage('@storage_key');
   const readItemFromStorage = async () => {
-    const item = await getItem();
-    setValue(item);
+    const user = JSON.parse(await AsyncStorage.getItem('user'));
+    setValue(user.id);
   };
   const [auteur, setAuteur] = useState('');
   const [datedeb, setDatedeb] = useState(new Date());

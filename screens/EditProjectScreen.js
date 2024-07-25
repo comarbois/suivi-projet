@@ -2,11 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
 import { Picker } from '@react-native-picker/picker'; // Import Picker component
 
-
-
-
-
-
 const EditProjectScreen = ({ route, navigation }) => {
   const { project } = route.params;
 

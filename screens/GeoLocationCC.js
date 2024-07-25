@@ -2,99 +2,32 @@ import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   Text,
-  TextInput,
-  Button,
   StyleSheet,
   ScrollView,
-  Platform,
   Alert,
   TouchableOpacity,
-  Modal,
-  FlatList,
   Image,
-  Linking,
+  TextInput,
 } from 'react-native';
 import {RNCamera} from 'react-native-camera';
-import {Picker} from '@react-native-picker/picker';
 import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
 import Geolocation from 'react-native-get-location';
-import AsyncStorage, {useAsyncStorage} from '@react-native-async-storage/async-storage';
+import AsyncStorage, {
+  useAsyncStorage,
+} from '@react-native-async-storage/async-storage';
 import {Dropdown} from 'react-native-element-dropdown';
 import {ActivityIndicator} from 'react-native-paper';
-import {set} from 'date-fns';
 import {useIsFocused} from '@react-navigation/native';
 
-const SearchablePicker = ({data, selectedValue, onValueChange}) => {
-  const [modalVisible, setModalVisible] = useState(false);
-  const [searchText, setSearchText] = useState('');
-  const [filteredData, setFilteredData] = useState(data);
-
-  const openModal = () => {
-    setSearchText('');
-    setFilteredData(data);
-    setModalVisible(true);
-  };
-
-  const filterData = text => {
-    const filtered = data.filter(item =>
-      item.societe.toLowerCase().includes(text.toLowerCase()),
-    );
-    setFilteredData(filtered);
-    setSearchText(text);
-  };
-
-  const selectItem = item => {
-    onValueChange(item.client);
-    setModalVisible(false);
-  };
-
-  return (
-    <View style={styles.pickerContainer}>
-      <TouchableOpacity style={styles.pickerTouchable} onPress={openModal}>
-        <Text style={styles.pickerText}>
-          {selectedValue
-            ? data.find(item => item.client === selectedValue)?.societe
-            : 'Choisir Client'}
-        </Text>
-      </TouchableOpacity>
-
-      <Modal visible={modalVisible} animationType="slide">
-        <View style={styles.modalContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Rechercher..."
-            value={searchText}
-            onChangeText={filterData}
-          />
-          <FlatList
-            data={filteredData}
-            keyExtractor={item => item.client.toString()}
-            renderItem={({item}) => (
-              <TouchableOpacity
-                onPress={() => selectItem(item)}
-                style={styles.item}>
-                <Text>{item.societe}</Text>
-              </TouchableOpacity>
-            )}
-          />
-          <Button title="Fermer" onPress={() => setModalVisible(false)} />
-        </View>
-      </Modal>
-    </View>
-  );
-};
 const PhotoScreen = ({route, navigation}) => {
   const [value, setValue] = useState(0);
-  const {getItem, setItem} = useAsyncStorage('@storage_key');
   const readItemFromStorage = async () => {
     const user = JSON.parse(await AsyncStorage.getItem('user'));
     setValue(user.id);
+    setIdjbm(user.idjbm);
+    setStatus(user.status);
   };
 
-  const [client, setClient] = useState('');
-  const [nouveau, setNouveau] = useState('');
-  const [projet, setProjet] = useState('');
-  const [chantier, setChantier] = useState('');
   const [observation, setObservation] = useState('');
   const [showInputs, setShowInputs] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState(null);
@@ -102,31 +35,39 @@ const PhotoScreen = ({route, navigation}) => {
   const [confirmedPhotos, setConfirmedPhotos] = useState([]);
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
-  const [projetType, setProjetType] = useState('');
-  const [clientType, setClientType] = useState('');
-  const [data, setData] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [existingProjects, setExistingProjects] = useState([]);
-  const [selectedExistingProject, setSelectedExistingProject] = useState(0);
+  const [selectedExistingClient, setSelectedExistingClient] = useState(0);
   const cameraRef = useRef(null);
   const projectId = route.params?.projectId ?? 0;
-  const isFocused = useIsFocused();
   const [adresse, setAdresse] = useState('');
+  const [action, setAction] = useState('');
+  const [idjbm, setIdjbm] = useState('');
+  const [villes, setVilles] = useState([]);
+  const [ville, setVille] = useState('');
+  const [status, setStatus] = useState('');
 
   useEffect(() => {
-    console.log('projext', projectId);
-    readItemFromStorage();
+    const getData = async () => {
+      await readItemFromStorage();
+      await getVilles();
+    };
+    getData();
   }, []);
 
-  useEffect(() => {
-    if (value > 0 && projectId == 0) {
-      fetchExistingProjects();
-    } else {
-      setProjetType('existing');
-      setSelectedExistingProject(projectId);
+  const getVilles = async () => {
+    try {
+      const response = await fetch(
+        'https://tbg.comarbois.ma/projet_api/api/projet/Villes.php',
+      );
+
+      const data = await response.json();
+      setVilles(data);
+    } catch (e) {
+      console.log(e);
     }
-  }, [value]);
+  };
 
   useEffect(() => {
     const requestCameraPermission = async () => {
@@ -144,60 +85,36 @@ const PhotoScreen = ({route, navigation}) => {
     requestCameraPermission();
   }, []);
 
-  const fetchExistingProjects = async () => {
-    try {
-      setLoading(true);
-
-      const response = await fetch(
-        'https://tbg.comarbois.ma/projet_api/api/projet/listprojet.php?userId=' +
-          value,
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const data = await response.json();
-      setExistingProjects(data);
-    } catch (error) {
-      console.error('Error fetching existing projects:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    // Fetch location using Geolocation
     Geolocation.getCurrentPosition({
       enableHighAccuracy: true,
       timeout: 15000,
     })
-      .then((location) => {
+      .then(location => {
         setLatitude(location.latitude);
         setLongitude(location.longitude);
       })
-      .catch((error) => {
+      .catch(error => {
         console.error(error);
-        // Handle error if location fetching fails
-      })
+      });
   }, []);
 
   useEffect(() => {
     if (!latitude && !longitude) {
       setLoading(true);
-     
     } else {
       setLoading(false);
-      console.log('latitude:', latitude, 'longitude:', longitude);
-      fetch(`https://nominatim.openstreetmap.org/search.php?q=${latitude},${longitude}&polygon_geojson=1&format=json&accept-language=fr`)
-          .then(response => response.json())
-          .then(data => {
-            
-            setAdresse(data[0]?.display_name);
-          })
-          .catch(error => {
-            console.error('Error:', error);
-      });
+      fetch(
+        `https://nominatim.openstreetmap.org/search.php?q=${latitude},${longitude}&polygon_geojson=1&format=json&accept-language=fr`,
+      )
+        .then(response => response.json())
+        .then(data => {
+          setAdresse(data[0]?.display_name);
+        })
+        .catch(error => {
+          console.error('Error:', error);
+        });
     }
-    
   }, [latitude, longitude]);
 
   const takePicture = async () => {
@@ -242,65 +159,75 @@ const PhotoScreen = ({route, navigation}) => {
   };
 
   const handleSubmit = async () => {
-
-    if(latitude == null || longitude == null){
+    if (latitude == null || longitude == null) {
       Alert.alert('Erreur', 'Veuillez activer la localisation GPS');
-      navigation.replace("Home")
+      navigation.replace('Home');
       return;
     }
 
+    if(ville == '' || ville == 0){
+      Alert.alert('Erreur', 'Veuillez selectionner une ville');
+      return;
+    }
+
+    if(selectedExistingClient == '' || selectedExistingClient == 0){
+      Alert.alert('Erreur', 'Veuillez selectionner un client');
+      return;
+    }
+
+    if (confirmedPhotos.length === 0) {
+      Alert.alert('Erreur', 'Veuillez ajouter au moins une photo');
+      return;
+    }
+
+    if (action === '') {
+      Alert.alert('Erreur', 'Veuillez ajouter une action');
+      return;
+    }
+
+    if(observation == ''){
+      Alert.alert('Erreur', 'Veuillez ajouter une observation');
+      return;
+    }
+
+
     const data = {
-      value,
-      client,
-      nouveau,
-      clientType,
-      observation,
+      photos: confirmedPhotos,
       latitude,
       longitude,
-      photos: confirmedPhotos,
-      projetType,
-      projet: projetType === 'new' ? projet : '',
-      chantier: projetType === 'new' ? chantier : '',
-      selectedExistingProject:
-        projetType === 'existing' ? selectedExistingProject : '',
+      observation,
+      action:action,
       adresse,
+      idClient: selectedExistingClient,
+      userId: value,
+      idCommercial: idjbm,
+      ville: ville,
+      status:status
     };
-
+    
     try {
-      const headers = {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      };
-
       const response = await fetch(
-        'https://tbg.comarbois.ma/projet_api/api/projet/ProjetDet.php',
+        `https://tbg.comarbois.ma/projet_api/api/projet/GeolocationAction.php`,
         {
           method: 'POST',
-          headers: headers,
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify(data),
         },
       );
+      const json = await response.json();
+      console.log(json);
 
-      const responseData = await response.json();
-      
-
-      if (responseData.status === 'success') {
-        Alert.alert('Succès', 'Le projet a été enregistré avec succès');
-        setClient('');
-        setNouveau('');
-        setProjet('');
-        setClientType('');
-        setProjetType('');
-        setChantier('');
-        setObservation('');
-        setConfirmedPhotos([]);
-        navigation.replace('List');
+      if (json.status === 'success') {
+        Alert.alert('Succès', 'Action ajoutée avec succès');
+        navigation.replace('Home');
       } else {
-        Alert.alert('Erreur', "Erreur lors de l'enregistrement du projet");
+        console.log(json.message);
+        Alert.alert('Erreur', "Erreur lors de l'ajout de l'action");
       }
-    } catch (error) {
-      console.error('Error:', error);
-      Alert.alert('Erreur', "Erreur lors de l'enregistrement du projet");
+    } catch (e) {
+      console.log(e);
     }
   };
 
@@ -316,7 +243,8 @@ const PhotoScreen = ({route, navigation}) => {
         if (!Array.isArray(json)) {
           throw new Error('Invalid data format');
         }
-        setData(json);
+
+        setClients(json);
         setLoading(false);
       })
       .catch(error => {
@@ -324,23 +252,6 @@ const PhotoScreen = ({route, navigation}) => {
         setLoading(false);
       });
   }, []);
-
-  const shouldShowOtherInputs = () => {
-    return (projetType && clientType) || showInputs;
-  };
-  const handleClientTypeChange = type => {
-    // Reset client and nouveau fields when switching client type
-    setClient('');
-    setNouveau('');
-    setClientType(type);
-  };
-  const handleProjetTypeChange = type => {
-    setProjet('');
-    setChantier('');
-    setObservation('');
-    setSelectedExistingProject('');
-    setProjetType(type);
-  };
 
   return (
     <View style={styles.container}>
@@ -350,115 +261,55 @@ const PhotoScreen = ({route, navigation}) => {
         <>
           {showInputs ? (
             <View style={styles.inputContainer}>
-              <Text style={styles.title}>Details Projet</Text>
+              <Text style={styles.title}>Details Action</Text>
               <Text style={styles.text}>{`${latitude}`}</Text>
               <Text style={styles.text}>{`${longitude}`}</Text>
 
-              <View style={styles.pickerContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.pickerButton,
-                    projetType === 'existing' && styles.selectedPickerButton,
-                  ]}
-                  disabled={projectId > 0}
-                  onPress={() => handleProjetTypeChange('existing')}>
-                  <Text style={styles.pickerButtonText}>Projet Existant</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.pickerButton,
-                    projetType === 'new' && styles.selectedPickerButton,
-                  ]}
-                  disabled={projectId > 0}
-                  onPress={() => handleProjetTypeChange('new')}>
-                  <Text style={styles.pickerButtonText}>Nouveau Projet</Text>
-                </TouchableOpacity>
-              </View>
-              {projetType === 'existing' ? (
-                projectId == 0 && (
-                  <Dropdown
-                    data={existingProjects}
-                    labelField={'designation'}
-                    valueField={'id'}
-                    value={selectedExistingProject}
-                    onChange={item =>
-                      setSelectedExistingProject(item.id.toString())
-                    }
-                    placeholder={'Selectioner un projet'}
-                    style={styles.dropdown}
-                    search
-                    searchField="designation"
-                    searchPlaceholder="Chercher un projet"
-                    inputSearchStyle={{color: 'black'}}
-                  />
-                )
-              ) : (
-                <>
-                  <View style={styles.pickerContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.pickerButton,
-                        clientType === 'client' && styles.selectedPickerButton,
-                      ]}
-                      onPress={() => handleClientTypeChange('client')}>
-                      <Text style={styles.pickerButtonText}>Client</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.pickerButton,
-                        clientType === 'prospect' &&
-                          styles.selectedPickerButton,
-                        clientType === 'prospect' && {
-                          backgroundColor: 'orange',
-                        },
-                      ]}
-                      onPress={() => handleClientTypeChange('prospect')}>
-                      <Text style={styles.pickerButtonText}>Nouveau</Text>
-                    </TouchableOpacity>
-                  </View>
-                  {clientType === 'client' && (
-                    <>
-                      <View style={styles.row}>
-                        <Text style={styles.label}>Client/Prospect:</Text>
-                        <SearchablePicker
-                          data={data}
-                          selectedValue={client}
-                          onValueChange={value => {
-                            console.log(`Selected client: ${value}`);
-                            setClient(value);
-                          }}
-                        />
-                      </View>
-                    </>
-                  )}
-                  {clientType === 'prospect' && (
-                    <TextInput
-                      style={styles.textInput}
-                      placeholder="Nouveau"
-                      value={nouveau}
-                      onChangeText={text => setNouveau(text)}
-                    />
-                  )}
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Projet"
-                    onChangeText={setProjet}
-                    value={projet}
-                  />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Chantier"
-                    onChangeText={text => setChantier(text)}
-                    value={chantier}
-                  />
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Observation"
-                    onChangeText={text => setObservation(text)}
-                    value={observation}
-                  />
-                </>
-              )}
+              <Dropdown
+                data={clients}
+                labelField={'societe'}
+                valueField={'id'}
+                value={selectedExistingClient}
+                onChange={item => setSelectedExistingClient(item.id.toString())}
+                placeholder={'Selectioner un client'}
+                style={styles.dropdown}
+                search
+                searchField="societe"
+                searchPlaceholder="Chercher un client"
+                inputSearchStyle={{color: 'black'}}
+              />
+
+              <Dropdown
+                data={villes}
+                valueField={'idVille'}
+                labelField={'villeLabel'}
+                value={ville}
+                onChange={item => setVille(item.idVille)}
+                placeholder={'Selectioner une ville'}
+                search
+                searchPlaceholder='Rechercher une ville'
+                style={styles.dropdown}
+                searchField="villeLabel"
+                inputSearchStyle={{color: 'black'}}
+              />
+
+              <TextInput
+                style={styles.textInput}
+                placeholder="Observation"
+                onChangeText={text => setObservation(text)}
+              />
+              <TextInput
+                style={styles.textInput}
+                placeholder="Adresse"
+                value={adresse}
+                editable={false}
+              />
+              <TextInput
+                style={styles.textInput}
+                placeholder="Action"
+                onChangeText={text => setAction(text)}
+              />
+
               <ScrollView style={styles.photoContainer}>
                 {confirmedPhotos.map((uri, index) => (
                   <View key={index} style={styles.photoWrapper}>
@@ -656,7 +507,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 20,
     paddingHorizontal: 10,
-    width: '80%',
+    width: '95%',
     borderRadius: 5,
   },
   pickerContainer: {

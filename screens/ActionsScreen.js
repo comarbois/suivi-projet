@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, FlatList, StyleSheet, ActivityIndicator, Text, TouchableOpacity, Modal, TextInput } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useAsyncStorage } from '@react-native-async-storage/async-storage';
+import AsyncStorage, { useAsyncStorage } from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
+import { Dropdown } from 'react-native-element-dropdown';
 
 const ActionsScreen = ({ route, navigation }) => {
   const [value, setValue] = useState(0);
@@ -14,6 +15,10 @@ const ActionsScreen = ({ route, navigation }) => {
   const [error, setError] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDateRealisee, setSelectedDateRealisee] = useState(false);
+  const [status, setStatus] = useState('');
+  const [villes , setVilles] = useState([]);
+  const [ville, setVille] = useState('');
+
   const [newAction, setNewAction] = useState({
     ACTION: '',
     lieu: '',
@@ -26,10 +31,33 @@ const ActionsScreen = ({ route, navigation }) => {
   const [showDatePrevuePicker, setShowDatePrevuePicker] = useState(false);
   const [showDateRealiseePicker, setShowDateRealiseePicker] = useState(false);
 
+
+  const getVilles = async () => {
+    try{
+      const response = await fetch(
+        'https://tbg.comarbois.ma/projet_api/api/projet/Villes.php',
+      );
+      
+      const data = await response.json();
+      setVilles(data);
+    }catch(e){
+      console.log(e);
+    }
+
+  };
+
+
   useEffect(() => {
     const readItemFromStorage = async () => {
-      const item = await getItem();
-      setValue(item);
+      const user = JSON.parse(await AsyncStorage.getItem('user'));
+      setValue(user.id);
+      setStatus(user.status);
+
+      await getVilles();
+
+
+
+      
     };
     readItemFromStorage();
   }, []);
@@ -71,6 +99,8 @@ const ActionsScreen = ({ route, navigation }) => {
           ...newAction,
           datePrevue: newAction.datePrevue.toISOString().split('T')[0],
           dateRealisee: newAction.dateRealisee.toISOString().split('T')[0],
+          ville: ville,
+          status:status
         })
       });
       if (!response.ok) {
@@ -103,6 +133,7 @@ const ActionsScreen = ({ route, navigation }) => {
         <Text style={styles.label}>Actions:</Text>
         <Text style={styles.actionText}>{item.ACTION}</Text>
       </View>
+      
       <View style={styles.labelContainer}>
         <Text style={styles.label}>Lieu:</Text>
         <Text style={styles.actionText}>{item.lieu}</Text>
@@ -230,6 +261,21 @@ const ActionsScreen = ({ route, navigation }) => {
                 }}
               />
             )}
+
+            <Text style={styles.label}>Ville:</Text>
+            <Dropdown
+                data={villes}
+                valueField={'idVille'}
+                labelField={'villeLabel'}
+                value={ville}
+                onChange={item => setVille(item.idVille)}
+                placeholder={'Selectioner une ville'}
+                search
+                searchPlaceholder='Rechercher une ville'
+                style={styles.dropdown}
+                searchField="villeLabel"
+                inputSearchStyle={{color: 'black'}}
+              />
 
             <Text style={styles.label}>Date Realisee:</Text>
             <TouchableOpacity style={styles.input} onPress={() => setShowDateRealiseePicker(true)}>
@@ -414,6 +460,17 @@ const styles = StyleSheet.create({
     color: 'white',
     textAlign: 'center',
     fontSize: 16,
+  },
+  dropdown: {
+    width: '95%',
+    height: 50,
+    backgroundColor: 'transparent',
+    borderColor: 'gray',
+    borderWidth: 0.5,
+    borderRadius: 5,
+    marginBottom: 10,
+    padding: 5,
+    color: 'black',
   },
 });
 

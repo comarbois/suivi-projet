@@ -8,7 +8,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
-import { useAsyncStorage } from '@react-native-async-storage/async-storage';
+import AsyncStorage, { useAsyncStorage } from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 
 // const API_URL = 'https://tbg.comarbois.ma/projet_api/api/auth/login.php';
@@ -18,17 +18,10 @@ const LoginScreen = ({ navigation }) => {
   const [username, setusername] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
-  const [value, setValue] = useState('value');
-  const { getItem, setItem } = useAsyncStorage('@storage_key');
-  const readItemFromStorage = async () => {
-    const item = await getItem();
-    setValue(item);
-  };
+ 
+ 
 
-  const writeItemToStorage = async newValue => {
-    await setItem(newValue);
-    setValue(newValue);
-  };
+ 
 
   useFocusEffect(
     React.useCallback(() => {
@@ -60,9 +53,16 @@ const LoginScreen = ({ navigation }) => {
       const data = await response.json();
       if (response.status === 200) {
         const { token } = data;
-        writeItemToStorage(data.user_id);
-        
-        // Save the token to AsyncStorage
+        const user = {
+          id : data.user_id,
+          idjbm : data.idjbm,
+          status : data.status,
+        }
+
+       
+        await AsyncStorage.setItem('token', token);
+        await AsyncStorage.setItem('user', JSON.stringify(user));
+
         navigation.replace('Home');
 
       } else {

@@ -1,4 +1,6 @@
-import {useAsyncStorage} from '@react-native-async-storage/async-storage';
+import AsyncStorage, {
+  useAsyncStorage,
+} from '@react-native-async-storage/async-storage';
 import {addDays, format, set} from 'date-fns';
 import React, {useEffect, useState} from 'react';
 import {Dropdown} from 'react-native-element-dropdown';
@@ -9,6 +11,7 @@ import {
   Modal,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -18,7 +21,7 @@ import {
 import {Agenda} from 'react-native-calendars';
 
 import {ActivityIndicator} from 'react-native-paper';
-import { se } from 'date-fns/locale';
+import {ca} from 'date-fns/locale';
 
 const actions = [
   {nom: 'Prospecter'},
@@ -34,6 +37,7 @@ const AgendaScreen = ({route, navigation}) => {
   const [selectedDateRealisee, setSelectedDateRealisee] = useState(false);
   const [date, setDate] = useState(new Date());
 
+  const [ville, setVille] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
   const [newAction, setNewAction] = useState({
     project_id: 0,
@@ -47,13 +51,13 @@ const AgendaScreen = ({route, navigation}) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [value, setValue] = useState(0);
   const [loading, setLoading] = useState(true);
-  useEffect(() => console.log(' value est jjj' + value), [value]);
-  const {getItem, setItem} = useAsyncStorage('@storage_key');
   const [projects, setProjects] = useState([]);
   const [clients, setClients] = useState([]);
   const [selectedProjet, setSelectedProjet] = useState(0);
   const [selectedAction, setSelectedAction] = useState('');
   const [selectedSrc, setSelectedSrc] = useState('projet');
+  const [status, setStatus] = useState('');
+  const [villes, setVilles] = useState([]);
 
   const toggelPicker = () => {
     setShowDateRealiseePicker(!showDateRealiseePicker);
@@ -87,7 +91,6 @@ const AgendaScreen = ({route, navigation}) => {
     setItems(reduced);
   };
 
-  
   const getProjects = async () => {
     const response = await fetch(
       `https://tbg.comarbois.ma/projet_api/api/projet/listprojet.php?userId=${value}`,
@@ -99,8 +102,12 @@ const AgendaScreen = ({route, navigation}) => {
   };
   useEffect(() => {
     const readItemFromStorage = async () => {
-      const item = await getItem();
-      setValue(item);
+      const user = JSON.parse(await AsyncStorage.getItem('user'));
+      setStatus(user.status);
+      if (user.status == 'CC') {
+        setSelectedSrc('client');
+      }
+      setValue(user.id);
     };
 
     readItemFromStorage();
@@ -114,16 +121,31 @@ const AgendaScreen = ({route, navigation}) => {
     setClients(data);
   };
 
+  const getVilles = async () => {
+    try {
+      const response = await fetch(
+        'https://tbg.comarbois.ma/projet_api/api/projet/Villes.php',
+      );
+
+      const data = await response.json();
+      setVilles(data);
+    } catch (e) {
+      console.log(e);
+    }
+  };
+
   useEffect(() => {
     setNewAction({...newAction, datePrevue: selectedDate});
   }, [selectedDate]);
-
 
   useEffect(() => {
     const getData = async () => {
       setLoading(true);
       await getActions();
-      await getProjects();
+      await getVilles();
+      if (status != 'CC') {
+        await getProjects();
+      }
       await getClients();
       setLoading(false);
     };
@@ -150,10 +172,9 @@ const AgendaScreen = ({route, navigation}) => {
       return;
     }
 
-    if(newAction.datePrevue == ''){
+    if (newAction.datePrevue == '') {
       Alert.alert('la date prevue est obligatoire');
       return;
-
     }
     if (newAction.lieu == '') {
       Alert.alert('le lieu est obligatoire');
@@ -161,6 +182,10 @@ const AgendaScreen = ({route, navigation}) => {
     }
     if (newAction.observation == '') {
       Alert.alert("l'observation est obligatoire");
+      return;
+    }
+    if (ville == 0) {
+      Alert.alert('la ville est obligatoire');
       return;
     }
 
@@ -174,14 +199,17 @@ const AgendaScreen = ({route, navigation}) => {
         body: JSON.stringify({
           value,
           ...newAction,
+          status,
+          ville,
         }),
       },
     );
 
+    const data = await response.json();
+    console.log(data);
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
-    const data = await response.json();
     Alert.alert('Action ajoutée avec succès');
     await getActions();
     setModalVisible(false);
@@ -239,125 +267,129 @@ const AgendaScreen = ({route, navigation}) => {
             onRequestClose={() => setModalVisible(false)}>
             <View style={styles.overlay}>
               <View style={styles.modalView}>
-                <Text style={styles.modalText}>Ajouter une action</Text>
-                <View style={styles.flex}>
-                  <Pressable
-                    style={[
-                      styles.select,
-                      selectedSrc === 'projet'
-                        ? {backgroundColor: '#b5e8ff'}
-                        : '',
-                    ]}
-                    onPress={() => {
-                      setSelectedSrc('projet');
-                      setNewAction({
-                        ...newAction,
-                        client_id: 0,
-                        project_id: 0,
-                        prospet: '',
-                      });
-                    }}>
-                    <Text> Projet</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      styles.select,
-                      selectedSrc === 'client'
-                        ? {backgroundColor: '#b5e8ff'}
-                        : '',
-                    ]}
-                    onPress={() => {
-                      setSelectedSrc('client');
-                      setNewAction({
-                        ...newAction,
-                        client_id: 0,
-                        project_id: 0,
-                        prospet: '',
-                      });
-                    }}>
-                    <Text> Client</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      styles.select,
-                      selectedSrc === 'prospet'
-                        ? {backgroundColor: '#b5e8ff'}
-                        : '',
-                    ]}
-                    onPress={() => {
-                      setSelectedSrc('prospet');
-                      setNewAction({
-                        ...newAction,
-                        client_id: 0,
-                        project_id: 0,
-                        prospet: '',
-                      });
-                    }}>
-                    <Text> Prospet</Text>
-                  </Pressable>
-                </View>
-                {selectedSrc === 'projet' && (
-                  <>
-                    <Text style={styles.labelField}>Projet</Text>
-                    <Dropdown
-                      data={projects}
-                      labelField={'designation'}
-                      valueField={'id'}
-                      value={newAction.project_id}
-                      onChange={item =>
-                        setNewAction({...newAction, project_id: item.id})
-                      }
-                      placeholder={'Selectioner un projet'}
-                      style={styles.dropdown}
-                      search
-                      searchField="designation"
-                      searchPlaceholder="Chercher un projet"
-                      inputSearchStyle={{color: 'black'}}
-                    />
-                  </>
-                )}
-                {selectedSrc === 'client' && (
-                  <>
-                    <Text style={styles.labelField}>Client</Text>
-                    <Dropdown
-                      data={clients}
-                      labelField={'societe'}
-                      valueField={'id'}
-                      value={newAction.client_id}
-                      onChange={item =>
-                        setNewAction({...newAction, client_id: item.id})
-                      }
-                      placeholder={'Selectioner un client'}
-                      style={styles.dropdown}
-                      search
-                      searchField="societe"
-                      searchPlaceholder="Chercher un client"
-                      inputSearchStyle={{color: 'black'}}
-                    />
-                  </>
-                )}
-                {selectedSrc === 'prospet' && (
-                  <>
-                    <Text style={styles.labelField}>Prospet</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={newAction.prospet}
-                      onChangeText={text =>
-                        setNewAction({...newAction, prospet: text})
-                      }
-                    />
-                  </>
-                )}
+                <ScrollView>
+                  <Text style={styles.modalText}>Ajouter une action</Text>
+                  <View style={styles.flex}>
+                    {status != 'CC' && (
+                      <Pressable
+                        style={[
+                          styles.select,
+                          selectedSrc === 'projet'
+                            ? {backgroundColor: '#b5e8ff'}
+                            : '',
+                        ]}
+                        disabled={status == 'CC'}
+                        onPress={() => {
+                          setSelectedSrc('projet');
+                          setNewAction({
+                            ...newAction,
+                            client_id: 0,
+                            project_id: 0,
+                            prospet: '',
+                          });
+                        }}>
+                        <Text> Projet</Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      style={[
+                        styles.select,
+                        selectedSrc === 'client'
+                          ? {backgroundColor: '#b5e8ff'}
+                          : '',
+                      ]}
+                      onPress={() => {
+                        setSelectedSrc('client');
+                        setNewAction({
+                          ...newAction,
+                          client_id: 0,
+                          project_id: 0,
+                          prospet: '',
+                        });
+                      }}>
+                      <Text> Client</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[
+                        styles.select,
+                        selectedSrc === 'prospet'
+                          ? {backgroundColor: '#b5e8ff'}
+                          : '',
+                      ]}
+                      onPress={() => {
+                        setSelectedSrc('prospet');
+                        setNewAction({
+                          ...newAction,
+                          client_id: 0,
+                          project_id: 0,
+                          prospet: '',
+                        });
+                      }}>
+                      <Text> Prospet</Text>
+                    </Pressable>
+                  </View>
+                  {selectedSrc === 'projet' && (
+                    <>
+                      <Text style={styles.labelField}>Projet</Text>
+                      <Dropdown
+                        data={projects}
+                        labelField={'designation'}
+                        valueField={'id'}
+                        value={newAction.project_id}
+                        onChange={item =>
+                          setNewAction({...newAction, project_id: item.id})
+                        }
+                        placeholder={'Selectioner un projet'}
+                        style={styles.dropdown}
+                        search
+                        searchField="designation"
+                        searchPlaceholder="Chercher un projet"
+                        inputSearchStyle={{color: 'black'}}
+                      />
+                    </>
+                  )}
+                  {selectedSrc === 'client' && (
+                    <>
+                      <Text style={styles.labelField}>Client</Text>
+                      <Dropdown
+                        data={clients}
+                        labelField={'societe'}
+                        valueField={'id'}
+                        value={newAction.client_id}
+                        onChange={item =>
+                          setNewAction({...newAction, client_id: item.id})
+                        }
+                        placeholder={'Selectioner un client'}
+                        style={styles.dropdown}
+                        search
+                        searchField="societe"
+                        searchPlaceholder="Chercher un client"
+                        inputSearchStyle={{color: 'black'}}
+                      />
+                    </>
+                  )}
+                  {selectedSrc === 'prospet' && (
+                    <>
+                      <Text style={styles.labelField}>Prospet</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={newAction.prospet}
+                        onChangeText={text =>
+                          setNewAction({...newAction, prospet: text})
+                        }
+                      />
+                    </>
+                  )}
 
-                <Text>Date Prevue</Text>
-                <TextInput
-                  style={styles.input}
-                  value={newAction.datePrevue}
-                  readOnly
-                />
+                  <Text>Date Prevue</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newAction.datePrevue}
+                    readOnly
+                  />
 
-                <Text>Date Realisé</Text>
-                {/* <TouchableOpacity
+                  <Text>Date Realisé</Text>
+                  {/* <TouchableOpacity
                   style={styles.input}
                   onPress={() => setShowDateRealiseePicker(true)}>
                   <Text>
@@ -366,75 +398,90 @@ const AgendaScreen = ({route, navigation}) => {
                       : ''}
                   </Text>
                 </TouchableOpacity> */}
-                <Pressable onPress={toggelPicker}>
+                  <Pressable onPress={toggelPicker}>
+                    <TextInput
+                      style={styles.input}
+                      value={newAction.dateRealisee}
+                      editable={false}
+                    />
+                  </Pressable>
+                  {showDateRealiseePicker && (
+                    <DateTimePicker
+                      mode="date"
+                      value={date}
+                      display="default"
+                      onChange={hadleChangePicker}
+                    />
+                  )}
+
+                  <Text style={styles.labelField}>Ville</Text>
+                  <Dropdown
+                    data={villes}
+                    valueField={'idVille'}
+                    labelField={'villeLabel'}
+                    value={newAction.ville}
+                    onChange={item => setVille(item.idVille)}
+                    search
+                    searchPlaceholder="Rechercher une ville"
+                    placeholder={'Selectioner une ville'}
+                    style={styles.dropdown}
+                    searchField="villeLabel"
+                    inputSearchStyle={{color: 'black'}}
+                  />
+                  <Text style={styles.labelField}>Lieu</Text>
                   <TextInput
                     style={styles.input}
-                    value={newAction.dateRealisee}
-                    editable={false}
+                    value={newAction.lieu}
+                    onChangeText={text =>
+                      setNewAction({...newAction, lieu: text})
+                    }
                   />
-                </Pressable>
-                {showDateRealiseePicker && (
-                  <DateTimePicker
-                    mode="date"
-                    value={date}
-                    display="default"
-                    onChange={hadleChangePicker}
+                  <Text style={styles.labelField}>Action</Text>
+                  <Dropdown
+                    data={actions}
+                    labelField={'nom'}
+                    valueField={'nom'}
+                    value={selectedAction}
+                    onChange={item =>
+                      setNewAction({...newAction, ACTION: item.nom})
+                    }
+                    placeholder={'Selectioner une action'}
+                    style={styles.dropdown}
+                    searchField="nom"
+                    inputSearchStyle={{color: 'black'}}
                   />
-                )}
 
-                <Text style={styles.labelField}>Lieu</Text>
-                <TextInput
-                  style={styles.input}
-                  value={newAction.lieu}
-                  onChangeText={text =>
-                    setNewAction({...newAction, lieu: text})
-                  }
-                />
-                <Text style={styles.labelField}>Action</Text>
-                <Dropdown
-                  data={actions}
-                  labelField={'nom'}
-                  valueField={'nom'}
-                  value={selectedAction}
-                  onChange={item =>
-                    setNewAction({...newAction, ACTION: item.nom})
-                  }
-                  placeholder={'Selectioner une action'}
-                  style={styles.dropdown}
-                  searchField="nom"
-                  inputSearchStyle={{color: 'black'}}
-                />
+                  <Text style={styles.labelField}>Observation</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newAction.observation}
+                    onChangeText={text =>
+                      setNewAction({...newAction, observation: text})
+                    }
+                  />
 
-                <Text style={styles.labelField}>Observation</Text>
-                <TextInput
-                  style={styles.input}
-                  value={newAction.observation}
-                  onChangeText={text =>
-                    setNewAction({...newAction, observation: text})
-                  }
-                />
+                  <Text style={styles.labelField}>Description</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newAction.description}
+                    onChangeText={text =>
+                      setNewAction({...newAction, description: text})
+                    }
+                  />
 
-                <Text style={styles.labelField}>Description</Text>
-                <TextInput
-                  style={styles.input}
-                  value={newAction.description}
-                  onChangeText={text =>
-                    setNewAction({...newAction, description: text})
-                  }
-                />
-
-                <View style={styles.flex}>
-                  <TouchableOpacity
-                    style={styles.saveButton}
-                    onPress={handleAddAction}>
-                    <Text style={styles.saveButtonText}>Enregistrer</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.saveButton, {backgroundColor: 'red'}]}
-                    onPress={() => setModalVisible(false)}>
-                    <Text style={styles.saveButtonText}>Fermer</Text>
-                  </TouchableOpacity>
-                </View>
+                  <View style={styles.flex}>
+                    <TouchableOpacity
+                      style={styles.saveButton}
+                      onPress={handleAddAction}>
+                      <Text style={styles.saveButtonText}>Enregistrer</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.saveButton, {backgroundColor: 'red'}]}
+                      onPress={() => setModalVisible(false)}>
+                      <Text style={styles.saveButtonText}>Fermer</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ScrollView>
               </View>
             </View>
           </Modal>
@@ -497,6 +544,7 @@ const styles = StyleSheet.create({
   },
   modalView: {
     width: '80%',
+    height: '80%',
     backgroundColor: 'white',
     borderRadius: 20,
     padding: 15,

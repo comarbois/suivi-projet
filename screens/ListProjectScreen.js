@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import Geolocation from 'react-native-get-location';
 import { Picker } from '@react-native-picker/picker';
-import { useAsyncStorage } from '@react-native-async-storage/async-storage';
+import AsyncStorage, { useAsyncStorage } from '@react-native-async-storage/async-storage';
 import {useIsFocused} from '@react-navigation/native';
 
 
@@ -27,8 +27,8 @@ const ListProjectScreen = ({ route, navigation }) => {
   useEffect(() => console.log(' value est '+value), [value]);
   const { getItem, setItem } = useAsyncStorage('@storage_key');
   const readItemFromStorage = async () => {
-    const item = await getItem();
-    setValue(item);
+    const user = JSON.parse(await AsyncStorage.getItem('user'));
+    setValue(user.id);
   };
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +72,7 @@ const ListProjectScreen = ({ route, navigation }) => {
     }
   }, [latitude, longitude]);
 
-  const fetchProjects = () => {
+  const fetchProjects = async () => {
     if(latitude === null || longitude === null) {
       Alert.alert('Erreur', 'La récupération de la position n\'est pas disponible')
       navigation.navigate('Home');
@@ -80,14 +80,16 @@ const ListProjectScreen = ({ route, navigation }) => {
     }
     
     setLoading(true);
-    getItem().then((userId) => {
-      if (!userId) {
-        setLoading(false);
-        return;
-      }
+   
+    const user = JSON.parse(await AsyncStorage.getItem('user'));
+    const userId = user.id;
+    if (!userId) {
+      setLoading(false);
+      return;
+    } 
 
-      
-      fetch(`https://tbg.comarbois.ma/projet_api/api/projet/listprojet.php?userId=${userId}&q=${searchText}&type=${searchField}`)
+    
+    fetch(`https://tbg.comarbois.ma/projet_api/api/projet/listprojet.php?userId=${userId}&q=${searchText}&type=${searchField}`)
         .then((response) => {
           if (!response.ok) {
             throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -107,7 +109,7 @@ const ListProjectScreen = ({ route, navigation }) => {
           setError(error.message);
           setLoading(false);
         });
-    });
+    
   };
 
   const handleCreateProject = () => {

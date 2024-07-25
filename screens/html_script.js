@@ -21,7 +21,7 @@ const html_script = `
   <script src="https://unpkg.com/leaflet@1.9.2/dist/leaflet.js" integrity="sha256-o9N1jGDZrf5tS+Ft4gbIK7mYMipq9lqpVJ91xHSyKhg=" crossorigin=""></script>
   <script>
     // Initialize the map with a default view
-    const map = L.map('map').setView([33.589886, -7.603869], 10);
+    const map = L.map('map').setView([31.791702, -7.092620], 6); // Latitude and Longitude for Morocco with zoom level 6
 
     // Add OpenStreetMap tiles to the map
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -32,30 +32,49 @@ const html_script = `
     // Initialize a LayerGroup to manage markers
     let markersLayer = L.layerGroup().addTo(map);
 
+    const projectIcon = L.icon({
+      iconUrl: 'https://tbg.comarbois.ma/images/appel-marker.png',
+      iconSize: [20, 20],
+      iconAnchor: [20, 20],
+      popupAnchor: [1, -34],
+    });
+
+    const clientIcon = L.icon({
+      iconUrl: 'https://tbg.comarbois.ma/images/projet-marker.png',
+      iconSize: [20, 20],
+      iconAnchor: [20, 20],
+      popupAnchor: [1, -34],
+    });
+
     // Function to add multiple markers
     function addMarkers(locations) {
       console.log("Adding markers:", locations);
-      // Clear existing markers by removing the LayerGroup
       markersLayer.clearLayers();
 
       locations.forEach(location => {
         if (location.lat != null && location.lon != null) {
           const wazeUrl = \`https://www.waze.com/ul?ll=\${location.lat},\${location.lon}&navigate=yes\`;
           const googleMapsUrl = \`https://www.google.com/maps/search/?api=1&query=\${location.lat},\${location.lon}\`;
-          const marker = L.marker([location.lat, location.lon])
+          const icon = location.type == 'Client' ? clientIcon : projectIcon;
+
+          const marker = L.marker([location.lat, location.lon], { icon: icon })
             .bindPopup(\`<b>\${location.name}</b><br>\${location.client}<br><a href="\${wazeUrl}" target="_blank">Waze</a> 
-            <a href="\${googleMapsUrl}" style="margin-left:50px" target="_blank">Google Maps</a>
-            \`)
+            <a href="\${googleMapsUrl}" style="margin-left:50px" target="_blank">Google Maps</a>\`)
             .openPopup();
           markersLayer.addLayer(marker);
-          console.log("Added marker:", marker);
         }
       });
-      console.log("Markers added.");
     }
 
-    // Expose addMarkers function to be called from React Native
+    // Function to set map view to user's location
+    function setMapView(lat, lon, zoom) {
+      console.log("Setting map view to:", lat, lon, zoom);
+      map.setView([lat, lon], zoom);
+    }
+
+    // Expose functions to be called from React Native
     window.addMarkers = addMarkers;
+    window.setMapView = setMapView;
   </script>
 </body>
 </html>
