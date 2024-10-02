@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Image,
   TextInput,
+  Pressable,
 } from 'react-native';
 import {RNCamera} from 'react-native-camera';
 import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
@@ -18,6 +19,15 @@ import AsyncStorage, {
 import {Dropdown} from 'react-native-element-dropdown';
 import {ActivityIndicator} from 'react-native-paper';
 import {useIsFocused} from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import moment from 'moment';
+
+const actions = [
+  {id: 1, label: 'Recupération Réglement'},
+  {id: 2, label: 'Changement Couverture'},
+  {id: 3, label: 'Réglement Impayé'},
+  {id: 4, label: 'Remise Facture'},
+];
 
 const PhotoScreen = ({route, navigation}) => {
   const [value, setValue] = useState(0);
@@ -27,6 +37,8 @@ const PhotoScreen = ({route, navigation}) => {
     setIdjbm(user.idjbm);
     setStatus(user.status);
   };
+
+  
 
   const [observation, setObservation] = useState('');
   const [showInputs, setShowInputs] = useState(false);
@@ -47,7 +59,24 @@ const PhotoScreen = ({route, navigation}) => {
   const [villes, setVilles] = useState([]);
   const [ville, setVille] = useState('');
   const [status, setStatus] = useState('');
+  const [datePrevue, setDatePrevue] = useState('');
+  const [showPicker, setShowPicker] = useState(false);
+  const [date, setDate] = useState(new Date());
+  const [montant, setMontant] = useState(0);
+  const [montantRecup, setMontantRecup] = useState(0);
 
+
+  const toggelPicker = () => {
+    setShowPicker(!showPicker);
+  };
+
+  const hadleChangePicker = ({type}, date) => {
+    if (type === 'set') {
+      console.log(date);
+      setDatePrevue(moment(date).format('YYYY-MM-DD')); 
+    }
+    toggelPicker();
+  };
   useEffect(() => {
     const getData = async () => {
       await readItemFromStorage();
@@ -69,6 +98,32 @@ const PhotoScreen = ({route, navigation}) => {
     }
   };
 
+  const getTicketValeurMontant = async () => {
+    if( selectedExistingClient == 0 || action == ''){
+      return;
+    }
+    if(action != 'Changement Couverture' && action != 'Réglement Impayé'){
+      setMontantRecup(0);
+      return;
+    }
+
+    console.log(selectedExistingClient);
+    console.log(action);
+    try {
+      const response = await fetch(
+        `https://tbg.comarbois.ma/projet_api/api/projet/GetTicketValeurMontant.php?idClient=${selectedExistingClient}&action=${encodeURIComponent(action)}`,
+      );
+
+      const data = await response.json();
+      console.log(data);
+      setMontantRecup(data.montant);
+    }catch(e){
+      console.log(e);
+    }
+
+
+  };
+
   useEffect(() => {
     const requestCameraPermission = async () => {
       try {
@@ -85,6 +140,10 @@ const PhotoScreen = ({route, navigation}) => {
     requestCameraPermission();
   }, []);
 
+  useEffect(() => {
+    getTicketValeurMontant();
+  }, [selectedExistingClient, action]);
+  
   useEffect(() => {
     Geolocation.getCurrentPosition({
       enableHighAccuracy: true,
@@ -165,12 +224,7 @@ const PhotoScreen = ({route, navigation}) => {
       return;
     }
 
-    if(ville == '' || ville == 0){
-      Alert.alert('Erreur', 'Veuillez selectionner une ville');
-      return;
-    }
-
-    if(selectedExistingClient == '' || selectedExistingClient == 0){
+    if (selectedExistingClient == '' || selectedExistingClient == 0) {
       Alert.alert('Erreur', 'Veuillez selectionner un client');
       return;
     }
@@ -185,26 +239,43 @@ const PhotoScreen = ({route, navigation}) => {
       return;
     }
 
-    if(observation == ''){
+    if (observation == '') {
       Alert.alert('Erreur', 'Veuillez ajouter une observation');
       return;
     }
 
+    if (datePrevue == '') {
+      Alert.alert('Erreur', 'Veuillez ajouter une date prévue');
+      return;
+    }
+
+    if (montant == 0) {
+      Alert.alert('Erreur', 'Veuillez ajouter un montant');
+      return;
+    }
+
+    if((action == 'Changement Couverture' || action == 'Réglement Impayé') && (montant - montantRecup) < 0 ){
+      Alert.alert('Attention', 'Le montant doit être supérieur ou égale au montant recupéré');
+      return;
+    }
 
     const data = {
       photos: confirmedPhotos,
       latitude,
       longitude,
       observation,
-      action:action,
+      action: action,
       adresse,
       idClient: selectedExistingClient,
       userId: value,
       idCommercial: idjbm,
       ville: ville,
-      status:status
+      datePrevue: datePrevue,
+      montant: montant,
+      status: status,
     };
-    
+    console.log(datePrevue);
+
     try {
       const response = await fetch(
         `https://tbg.comarbois.ma/projet_api/api/projet/GeolocationAction.php`,
@@ -260,67 +331,108 @@ const PhotoScreen = ({route, navigation}) => {
       ) : (
         <>
           {showInputs ? (
-            <View style={styles.inputContainer}>
-              <Text style={styles.title}>Details Action</Text>
-              <Text style={styles.text}>{`${latitude}`}</Text>
-              <Text style={styles.text}>{`${longitude}`}</Text>
-
-              <Dropdown
-                data={clients}
-                labelField={'societe'}
-                valueField={'id'}
-                value={selectedExistingClient}
-                onChange={item => setSelectedExistingClient(item.id.toString())}
-                placeholder={'Selectioner un client'}
-                style={styles.dropdown}
-                search
-                searchField="societe"
-                searchPlaceholder="Chercher un client"
-                inputSearchStyle={{color: 'black'}}
-              />
-
-              <Dropdown
-                data={villes}
-                valueField={'idVille'}
-                labelField={'villeLabel'}
-                value={ville}
-                onChange={item => setVille(item.idVille)}
-                placeholder={'Selectioner une ville'}
-                search
-                searchPlaceholder='Rechercher une ville'
-                style={styles.dropdown}
-                searchField="villeLabel"
-                inputSearchStyle={{color: 'black'}}
-              />
-
-              <TextInput
-                style={styles.textInput}
-                placeholder="Observation"
-                onChangeText={text => setObservation(text)}
-              />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Adresse"
-                value={adresse}
-                editable={false}
-              />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Action"
-                onChangeText={text => setAction(text)}
-              />
-
+            <>
               <ScrollView style={styles.photoContainer}>
-                {confirmedPhotos.map((uri, index) => (
-                  <View key={index} style={styles.photoWrapper}>
-                    <Image source={{uri}} style={styles.confirmedPhoto} />
-                    <TouchableOpacity
-                      onPress={() => deletePhoto(uri)}
-                      style={styles.deleteButton}>
-                      <Text style={styles.deleteButtonText}>✕</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
+                <View style={styles.inputContainer}>
+                  <Text style={styles.title}>Details Action</Text>
+                  <Text style={styles.text}>{`${latitude}`}</Text>
+                  <Text style={styles.text}>{`${longitude}`}</Text>
+
+                  <Pressable
+                    onPress={toggelPicker}
+                    style={{width: '100%', marginTop: 20}}>
+                    <TextInput
+                      style={[styles.textInput, {marginLeft: 7}]}
+                      value={moment(datePrevue).format('DD/MM/YYYY') || ''}
+                      editable={false}
+                      placeholder="Date prévue"
+                    />
+                  </Pressable>
+                  {showPicker && (
+                    <DateTimePicker
+                      mode="date"
+                      value={date}
+                      display="default"
+                      onChange={hadleChangePicker}
+                    />
+                  )}
+                  <Dropdown
+                    data={clients}
+                    labelField={'societe'}
+                    valueField={'id'}
+                    value={selectedExistingClient}
+                    onChange={item =>
+                      {
+                        setSelectedExistingClient(item.id.toString())
+                        
+                      }
+                    }
+                    placeholder={'Selectioner un client'}
+                    style={styles.dropdown}
+                    search
+                    searchField="societe"
+                    searchPlaceholder="Chercher un client"
+                    inputSearchStyle={{color: 'black'}}
+                  />
+                 
+                  <Dropdown
+                    data={actions}
+                    labelField={'label'}
+                    valueField={'label'}
+                    value={action}
+                    onChange={item => {
+                      setAction(item.label)
+                      
+                    }}
+                    placeholder={'Selectioner une action'}
+                    style={styles.dropdown}
+                  />
+
+                  <TextInput  
+                    style={styles.textInput}
+                    placeholder='montant recup'
+                    onChangeText={text => setMontantRecup(text)}
+                    value={montantRecup}
+                    editable={false}
+                    keyboardType='numeric'
+                  />
+
+
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder='montant'
+                    onChangeText={text => setMontant(text)}
+                    value={montant}
+                    keyboardType='numeric'
+                  />
+                  <Text style={{
+                    color: montant - montantRecup < 0 ? 'red' :  montant - montantRecup > 0 ? 'green' : 'black',
+                    fontSize: 16,
+                    fontWeight: 'bold',
+                    textAlign: 'left',
+                    marginBottom: 10,
+                    
+                  }}>
+                    Diff montant : {montant - montantRecup}
+                  </Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Observation"
+                    onChangeText={text => setObservation(text)}
+                  />
+
+
+                  {confirmedPhotos.map((uri, index) => (
+                    <View key={index} style={styles.photoWrapper}>
+                      <Image source={{uri}} style={styles.confirmedPhoto} />
+                      <TouchableOpacity
+                        onPress={() => deletePhoto(uri)}
+                        style={styles.deleteButton}>
+                        <Text style={styles.deleteButtonText}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
               </ScrollView>
               <View style={styles.buttonContainerr}>
                 <TouchableOpacity
@@ -334,7 +446,7 @@ const PhotoScreen = ({route, navigation}) => {
                   <Text style={styles.buttonText}>Enregistrer</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </>
           ) : (
             <View style={styles.cameraContainer}>
               {photo ? (

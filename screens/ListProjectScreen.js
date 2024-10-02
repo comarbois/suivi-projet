@@ -97,7 +97,7 @@ const ListProjectScreen = ({ route, navigation }) => {
           return response.json();
         })
         .then((json) => {
-          console.log(json[0].adresse);
+          console.log(json[0]);
           
           if (!Array.isArray(json)) {
             throw new Error("Invalid data format");
@@ -106,6 +106,7 @@ const ListProjectScreen = ({ route, navigation }) => {
           setLoading(false);
         })
         .catch((error) => {
+          console.error(error); 
           setError(error.message);
           setLoading(false);
         });
@@ -135,13 +136,7 @@ const ListProjectScreen = ({ route, navigation }) => {
     );
   }
 
-  if (error) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
-    );
-  }
+  
 
   const handleSearch = () => {
     
@@ -221,44 +216,38 @@ const ListProjectScreen = ({ route, navigation }) => {
         <View style={styles.row}>
           <TouchableOpacity style={styles.projectCard} onPress={() => handleProjectPress(item)}>
             <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{item.projet}</Text>
+              <Text style={styles.cardTitle}>{item.projet} ({item.typeprojet})</Text>
               <Text style={styles.cardText}>{getRsOrNouveau(item)}</Text>
-              <Text style={styles.cardText}>{item.adresse}</Text>
+              <Text style={styles.cardText}>{item.adresse?.slice(0,40)} .... </Text>
               <Text style={[styles.cardTitle, {fontSize: 13}]}>{numberWithCommas(item.montant)}</Text>
-
-             
               <Text style={styles.cardText}>{getFormattedDate(item.dateCreate)}</Text>
               <View style={styles.cardActions}>
                 <TouchableOpacity style={styles.cardButton} onPress={() => handleEditProject(item)}>
                   <Image source={require('../assets/modifier.png')} style={styles.logo} />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.cardButton} onPress={() => navigation.navigate('IMG', {item})}>
+                <TouchableOpacity style={styles.cardButton} onPress={() => navigation.navigate('IMG', {images : item.images, projetId :item.id})}>
                   <Image source={require('../assets/imagee.png')} style={styles.logo} />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.cardButton} onPress={() => navigation.navigate('Actions', { item })}>
-                  <Image source={require('../assets/action.png')} style={styles.logo} />
-                </TouchableOpacity>
+                
               </View>
             </View>
           </TouchableOpacity>
           {nextItem && (
             <TouchableOpacity style={styles.projectCard} onPress={() => handleProjectPress(nextItem)}>
               <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>{nextItem.projet}</Text>
+              <Text style={styles.cardTitle}>{nextItem.projet} ({nextItem.typeprojet})</Text>
                 <Text style={styles.cardText}>{getRsOrNouveau(nextItem)}</Text>
-                <Text style={styles.cardText}>{nextItem.adresse} </Text>
-                <Text style={[styles.cardTitle, {fontSize: 13}]}>{numberWithCommas(item.montant)}</Text>
+                <Text style={styles.cardText}>{nextItem.adresse?.slice(0,40)} .... </Text>
+                <Text style={[styles.cardTitle, {fontSize: 13}]}>{numberWithCommas(nextItem.montant)}</Text>
                 <Text style={styles.cardText}>{getFormattedDate(nextItem.dateCreate)}</Text>
                 <View style={styles.cardActions}>
                   <TouchableOpacity style={styles.cardButton} onPress={() => handleEditProject(nextItem)}>
                     <Image source={require('../assets/modifier.png')} style={styles.logo} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.cardButton} onPress={() => navigation.navigate('IMG', {item})}>
+                  <TouchableOpacity style={styles.cardButton} onPress={() => navigation.navigate('IMG', {images : nextItem.images, projetId : nextItem.id})}>
                     <Image source={require('../assets/imagee.png')} style={styles.logo} />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.cardButton} onPress={() => navigation.navigate('Actions', { item: nextItem })}>
-                    <Image source={require('../assets/action.png')} style={styles.logo} />
-                  </TouchableOpacity>
+                  
                 </View>
               </View>
             </TouchableOpacity>
@@ -320,59 +309,49 @@ const ListProjectScreen = ({ route, navigation }) => {
             <TouchableOpacity style={styles.closeButton} onPress={() => setShowModal(false)}>
               <Text style={styles.modalButtonText}>X</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Information du projet</Text>
+            <Text style={styles.modalTitle}>Details</Text>
             <View style={styles.labelContainer}>
-              <Text style={styles.label}>ID:</Text>
-              <Text style={styles.modalText}>{selectedProject.id}</Text>
+              <Text style={styles.label}>Type:</Text>
+              <Text style={styles.modalText}>{selectedProject.typeprojet}</Text>
             </View>
+            <View style={styles.labelContainer}>
+              <Text style={styles.label}>Titre:</Text>
+              <Text style={styles.modalText}>{selectedProject.projet}</Text>
+            </View>
+            
             <View style={styles.labelContainer}>
               <Text style={styles.label}>Auteur:</Text>
               <Text style={styles.modalText}>{selectedProject.name}</Text>
             </View>
+            
             <View style={styles.labelContainer}>
               <Text style={styles.label}>Client:</Text>
               <Text style={[styles.modalText && {color:"green"}]}>{selectedProject.rs}</Text>
             </View>
             <View style={styles.labelContainer}>
-              <Text style={styles.label}>Nouveau:</Text>
+              <Text style={styles.label}>Prospect:</Text>
               <Text style={[styles.modalText && {color:"orange"}]}>{selectedProject.nouveau}</Text>
             </View>
-            <View style={styles.labelContainer}>
-              <Text style={styles.label}>Type de projet:</Text>
-              <Text style={styles.modalText}>{selectedProject.typeprojet}</Text>
-            </View>
+            
             <View style={styles.labelContainer}>
               <Text style={styles.label}>Date du Saisie:</Text>
               <Text style={styles.modalText}>{selectedProject.dateCreate}</Text>
             </View>
             <View style={styles.labelContainer}>
-              <Text style={styles.label}>Date debut chantier:</Text>
-              <Text style={styles.modalText}>{selectedProject.dateDebChant}</Text>
-            </View>
-            <View style={styles.labelContainer}>
               <Text style={styles.label}>Adresse:</Text>
               <Text style={styles.modalText}>{selectedProject.adresse}</Text>
             </View>
+            
+            
             <View style={styles.labelContainer}>
-              <Text style={styles.label}>Chantier:</Text>
-              <Text style={styles.modalText}>{selectedProject.chantier}</Text>
+              <Text style={styles.label}>Region:</Text>
+              <Text style={styles.modalText}>{selectedProject.region}</Text>
             </View>
             <View style={styles.labelContainer}>
-              <Text style={styles.label}>Projet:</Text>
-              <Text style={styles.modalText}>{selectedProject.projet}</Text>
+              <Text style={styles.label}>Ville:</Text>
+              <Text style={styles.modalText}>{selectedProject.ville}</Text>
             </View>
-            <View style={styles.labelContainer}>
-              <Text style={styles.label}>Nom contact:</Text>
-              <Text style={styles.modalText}>{selectedProject.contact_nom}</Text>
-            </View>
-            <View style={styles.labelContainer}>
-              <Text style={styles.label}>Tel contact:</Text>
-              <Text style={styles.modalText}>{selectedProject.contact_tel}</Text>
-            </View>
-            <View style={styles.labelContainer}>
-              <Text style={styles.label}>Ville contact:</Text>
-              <Text style={styles.modalText}>{selectedProject.contact_ville}</Text>
-            </View>
+            
             <View style={styles.modalButtonContainer}>
             <TouchableOpacity style={styles.modalButton} onPress={() => openInMaps(selectedProject.latitude, selectedProject.longitude)}>
             <Image source={require('../assets/maps.png')} style={styles.logo} />
@@ -531,6 +510,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 20,
     color: "black",
+    textAlign: 'center',
   },
   modalText: {
     fontSize: 16,

@@ -16,6 +16,8 @@ import ItinirairesScreen from './screens/ItinirairesScreen';
 import AgendaScreen from './screens/AgendaScreen';
 import MapScreen2 from './screens/MapScreen2';
 import GeoLocationCC from './screens/GeoLocationCC';
+import AddAction from './screens/AddAction';
+import EditActionScreen from './screens/EditActionScreen';
 
 
 // https://tbg.comarbois.ma/projet_api
@@ -115,6 +117,18 @@ function App() {
           component={ActionsScreen} 
           options={{ title: '' }} 
         />
+        <Stack.Screen 
+          name="AddAction" 
+          component={AddAction} 
+          options={{ title: '' }} 
+        />
+        <Stack.Screen
+          name = "EditAction"
+          component = {EditActionScreen}
+          options = {{title: ''}}
+        />
+
+        
         <Stack.Screen 
           name="Itiniraires" 
           component={ItinirairesScreen} 

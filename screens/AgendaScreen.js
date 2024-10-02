@@ -8,6 +8,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 import {
   Alert,
+  ImageBackground,
   Modal,
   Pressable,
   SafeAreaView,
@@ -21,7 +22,8 @@ import {
 import {Agenda} from 'react-native-calendars';
 
 import {ActivityIndicator} from 'react-native-paper';
-import {ca} from 'date-fns/locale';
+import moment from 'moment';
+
 
 const actions = [
   {nom: 'Prospecter'},
@@ -54,22 +56,11 @@ const AgendaScreen = ({route, navigation}) => {
   const [projects, setProjects] = useState([]);
   const [clients, setClients] = useState([]);
   const [selectedProjet, setSelectedProjet] = useState(0);
-  const [selectedAction, setSelectedAction] = useState('');
-  const [selectedSrc, setSelectedSrc] = useState('projet');
   const [status, setStatus] = useState('');
-  const [villes, setVilles] = useState([]);
+  
+ 
 
-  const toggelPicker = () => {
-    setShowDateRealiseePicker(!showDateRealiseePicker);
-  };
 
-  const hadleChangePicker = ({type}, date) => {
-    if (type === 'set') {
-      setDate(date);
-      setNewAction({...newAction, dateRealisee: date.toLocaleDateString()});
-    }
-    toggelPicker();
-  };
 
   const getActions = async () => {
     const response = await fetch(
@@ -91,62 +82,30 @@ const AgendaScreen = ({route, navigation}) => {
     setItems(reduced);
   };
 
-  const getProjects = async () => {
-    const response = await fetch(
-      `https://tbg.comarbois.ma/projet_api/api/projet/listprojet.php?userId=${value}`,
-    );
-
-    const data = await response.json();
-
-    setProjects(data);
-  };
   useEffect(() => {
     const readItemFromStorage = async () => {
       const user = JSON.parse(await AsyncStorage.getItem('user'));
       setStatus(user.status);
-      if (user.status == 'CC') {
-        setSelectedSrc('client');
-      }
+     
       setValue(user.id);
     };
 
     readItemFromStorage();
   }, []);
 
-  const getClients = async () => {
-    const response = await fetch(
-      `https://tbg.comarbois.ma/projet_api/api/projet/Getclients.php?userId=${value}`,
-    );
-    const data = await response.json();
-    setClients(data);
-  };
+  
 
-  const getVilles = async () => {
-    try {
-      const response = await fetch(
-        'https://tbg.comarbois.ma/projet_api/api/projet/Villes.php',
-      );
+  
 
-      const data = await response.json();
-      setVilles(data);
-    } catch (e) {
-      console.log(e);
-    }
-  };
-
-  useEffect(() => {
-    setNewAction({...newAction, datePrevue: selectedDate});
-  }, [selectedDate]);
+ 
 
   useEffect(() => {
     const getData = async () => {
       setLoading(true);
       await getActions();
-      await getVilles();
-      if (status != 'CC') {
-        await getProjects();
-      }
-      await getClients();
+    
+      
+     
       setLoading(false);
     };
     if (value > 0) {
@@ -154,85 +113,45 @@ const AgendaScreen = ({route, navigation}) => {
     }
   }, [value]);
 
-  const handleAddAction = async () => {
-    if (selectedSrc == 'projet' && newAction.project_id == 0) {
-      Alert.alert('Le projet est obligatoire');
-      return;
-    }
-    if (selectedSrc == 'client' && newAction.client_id == 0) {
-      Alert.alert('Le client est obligatoire');
-      return;
-    }
-    if (selectedSrc == 'prospet' && newAction.prospet == '') {
-      Alert.alert('Le prospet est obligatoire');
-      return;
-    }
-    if (newAction.ACTION == '') {
-      Alert.alert('Selectionner une action');
-      return;
-    }
-
-    if (newAction.datePrevue == '') {
-      Alert.alert('la date prevue est obligatoire');
-      return;
-    }
-    if (newAction.lieu == '') {
-      Alert.alert('le lieu est obligatoire');
-      return;
-    }
-    if (newAction.observation == '') {
-      Alert.alert("l'observation est obligatoire");
-      return;
-    }
-    if (ville == 0) {
-      Alert.alert('la ville est obligatoire');
-      return;
-    }
-
-    const response = await fetch(
-      'https://tbg.comarbois.ma/projet_api/api/projet/AddAction.php',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          value,
-          ...newAction,
-          status,
-          ville,
-        }),
-      },
-    );
-
-    const data = await response.json();
-    console.log(data);
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    Alert.alert('Action ajoutée avec succès');
-    await getActions();
-    setModalVisible(false);
-    setNewAction({
-      project_id: 0,
-      lieu: '',
-      ACTION: '',
-      datePrevue: '',
-      observation: '',
-      description: '',
-      prospet: '',
-      client_id: 0,
-    });
-  };
+  
 
   const renderItem = item => {
     return (
       <View style={styles.itemContainer}>
-        <Text style={{fontWeight: '900'}}>{item.action}</Text>
+        <Text style={{fontWeight: '900'}}>{item.action} <Text style={  [item.dateRealisee !='0000-00-00' ? {color: 'green'} : {color: 'orange'}, {fontWeight:'normal'}]}>
+          {item.dateRealisee !='0000-00-00' ? 'Realisée le ' + moment(item.dateRealisee).format('DD/MM/YYYY') : 'Non Realisée'}
+        </Text> </Text>
         <Text style={{color: 'blue'}}>{item.action_src}</Text>
-        <Text>{item.name}</Text>
-        <Text>{item.lieu}</Text>
         <Text>{item.observation}</Text>
+        <Text>{item.name}</Text>
+        {item.action == 'Localiser Client' && (
+          <Text>{item.lieu}</Text>
+        )}
+        <View
+              style={{flexDirection: 'row', flexWrap: 'wrap', marginTop: 20}}>
+              {item.images.map((image, index) => (
+                <View
+                  key={index}
+                  style={{
+                    width: 100,
+                    height: 100,
+                    marginRight: 10,
+                    marginBottom: 10,
+                    position: 'relative',
+                  }}>
+                  <ImageBackground
+                    source={{ uri: `https://tbg.comarbois.ma/${image.file}` }}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: 5,
+                      overflow: 'hidden',
+                    }}
+                  />
+                 
+                </View>
+              ))}
+            </View>
       </View>
     );
   };
@@ -249,242 +168,8 @@ const AgendaScreen = ({route, navigation}) => {
               setNewAction({...newAction, datePrevue: day.dateString});
             }}
           />
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => {
-              if (selectedDate) {
-                setNewAction({...newAction, datePrevue: selectedDate});
-              }
-              setModalVisible(true);
-            }}>
-            <Text style={styles.addButtonText}>Ajouter Action</Text>
-          </TouchableOpacity>
-
-          <Modal
-            animationType="slide"
-            transparent={true}
-            visible={modalVisible}
-            onRequestClose={() => setModalVisible(false)}>
-            <View style={styles.overlay}>
-              <View style={styles.modalView}>
-                <ScrollView>
-                  <Text style={styles.modalText}>Ajouter une action</Text>
-                  <View style={styles.flex}>
-                    {status != 'CC' && (
-                      <Pressable
-                        style={[
-                          styles.select,
-                          selectedSrc === 'projet'
-                            ? {backgroundColor: '#b5e8ff'}
-                            : '',
-                        ]}
-                        disabled={status == 'CC'}
-                        onPress={() => {
-                          setSelectedSrc('projet');
-                          setNewAction({
-                            ...newAction,
-                            client_id: 0,
-                            project_id: 0,
-                            prospet: '',
-                          });
-                        }}>
-                        <Text> Projet</Text>
-                      </Pressable>
-                    )}
-                    <Pressable
-                      style={[
-                        styles.select,
-                        selectedSrc === 'client'
-                          ? {backgroundColor: '#b5e8ff'}
-                          : '',
-                      ]}
-                      onPress={() => {
-                        setSelectedSrc('client');
-                        setNewAction({
-                          ...newAction,
-                          client_id: 0,
-                          project_id: 0,
-                          prospet: '',
-                        });
-                      }}>
-                      <Text> Client</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[
-                        styles.select,
-                        selectedSrc === 'prospet'
-                          ? {backgroundColor: '#b5e8ff'}
-                          : '',
-                      ]}
-                      onPress={() => {
-                        setSelectedSrc('prospet');
-                        setNewAction({
-                          ...newAction,
-                          client_id: 0,
-                          project_id: 0,
-                          prospet: '',
-                        });
-                      }}>
-                      <Text> Prospet</Text>
-                    </Pressable>
-                  </View>
-                  {selectedSrc === 'projet' && (
-                    <>
-                      <Text style={styles.labelField}>Projet</Text>
-                      <Dropdown
-                        data={projects}
-                        labelField={'designation'}
-                        valueField={'id'}
-                        value={newAction.project_id}
-                        onChange={item =>
-                          setNewAction({...newAction, project_id: item.id})
-                        }
-                        placeholder={'Selectioner un projet'}
-                        style={styles.dropdown}
-                        search
-                        searchField="designation"
-                        searchPlaceholder="Chercher un projet"
-                        inputSearchStyle={{color: 'black'}}
-                      />
-                    </>
-                  )}
-                  {selectedSrc === 'client' && (
-                    <>
-                      <Text style={styles.labelField}>Client</Text>
-                      <Dropdown
-                        data={clients}
-                        labelField={'societe'}
-                        valueField={'id'}
-                        value={newAction.client_id}
-                        onChange={item =>
-                          setNewAction({...newAction, client_id: item.id})
-                        }
-                        placeholder={'Selectioner un client'}
-                        style={styles.dropdown}
-                        search
-                        searchField="societe"
-                        searchPlaceholder="Chercher un client"
-                        inputSearchStyle={{color: 'black'}}
-                      />
-                    </>
-                  )}
-                  {selectedSrc === 'prospet' && (
-                    <>
-                      <Text style={styles.labelField}>Prospet</Text>
-                      <TextInput
-                        style={styles.input}
-                        value={newAction.prospet}
-                        onChangeText={text =>
-                          setNewAction({...newAction, prospet: text})
-                        }
-                      />
-                    </>
-                  )}
-
-                  <Text>Date Prevue</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newAction.datePrevue}
-                    readOnly
-                  />
-
-                  <Text>Date Realisé</Text>
-                  {/* <TouchableOpacity
-                  style={styles.input}
-                  onPress={() => setShowDateRealiseePicker(true)}>
-                  <Text>
-                    {selectedDateRealisee
-                      ? newAction.dateRealisee.toLocaleDateString()
-                      : ''}
-                  </Text>
-                </TouchableOpacity> */}
-                  <Pressable onPress={toggelPicker}>
-                    <TextInput
-                      style={styles.input}
-                      value={newAction.dateRealisee}
-                      editable={false}
-                    />
-                  </Pressable>
-                  {showDateRealiseePicker && (
-                    <DateTimePicker
-                      mode="date"
-                      value={date}
-                      display="default"
-                      onChange={hadleChangePicker}
-                    />
-                  )}
-
-                  <Text style={styles.labelField}>Ville</Text>
-                  <Dropdown
-                    data={villes}
-                    valueField={'idVille'}
-                    labelField={'villeLabel'}
-                    value={newAction.ville}
-                    onChange={item => setVille(item.idVille)}
-                    search
-                    searchPlaceholder="Rechercher une ville"
-                    placeholder={'Selectioner une ville'}
-                    style={styles.dropdown}
-                    searchField="villeLabel"
-                    inputSearchStyle={{color: 'black'}}
-                  />
-                  <Text style={styles.labelField}>Lieu</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newAction.lieu}
-                    onChangeText={text =>
-                      setNewAction({...newAction, lieu: text})
-                    }
-                  />
-                  <Text style={styles.labelField}>Action</Text>
-                  <Dropdown
-                    data={actions}
-                    labelField={'nom'}
-                    valueField={'nom'}
-                    value={selectedAction}
-                    onChange={item =>
-                      setNewAction({...newAction, ACTION: item.nom})
-                    }
-                    placeholder={'Selectioner une action'}
-                    style={styles.dropdown}
-                    searchField="nom"
-                    inputSearchStyle={{color: 'black'}}
-                  />
-
-                  <Text style={styles.labelField}>Observation</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newAction.observation}
-                    onChangeText={text =>
-                      setNewAction({...newAction, observation: text})
-                    }
-                  />
-
-                  <Text style={styles.labelField}>Description</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newAction.description}
-                    onChangeText={text =>
-                      setNewAction({...newAction, description: text})
-                    }
-                  />
-
-                  <View style={styles.flex}>
-                    <TouchableOpacity
-                      style={styles.saveButton}
-                      onPress={handleAddAction}>
-                      <Text style={styles.saveButtonText}>Enregistrer</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.saveButton, {backgroundColor: 'red'}]}
-                      onPress={() => setModalVisible(false)}>
-                      <Text style={styles.saveButtonText}>Fermer</Text>
-                    </TouchableOpacity>
-                  </View>
-                </ScrollView>
-              </View>
-            </View>
-          </Modal>
+         
+          
         </SafeAreaView>
       ) : (
         <View style={{flex: 1}}>

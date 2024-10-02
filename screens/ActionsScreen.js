@@ -1,314 +1,365 @@
-import React, { useEffect, useState } from 'react';
-import { View, FlatList, StyleSheet, ActivityIndicator, Text, TouchableOpacity, Modal, TextInput } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import AsyncStorage, { useAsyncStorage } from '@react-native-async-storage/async-storage';
-import { Picker } from '@react-native-picker/picker';
-import { Dropdown } from 'react-native-element-dropdown';
+import React, {useEffect, useState} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  ActivityIndicator,
+  Image,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Modal,
+  Linking,
+  Alert,
+  Platform,
+} from 'react-native';
+import Geolocation from 'react-native-get-location';
+import {Picker} from '@react-native-picker/picker';
+import AsyncStorage, {
+  useAsyncStorage,
+} from '@react-native-async-storage/async-storage';
+import {useIsFocused} from '@react-navigation/native';
 
-const ActionsScreen = ({ route, navigation }) => {
+const ListProjectScreen = ({route, navigation}) => {
   const [value, setValue] = useState(0);
   useEffect(() => console.log(' value est ' + value), [value]);
-  const { getItem, setItem } = useAsyncStorage('@storage_key');
-  const { item } = route.params;
-  const [actions, setActions] = useState([]);
+  const {getItem, setItem} = useAsyncStorage('@storage_key');
+  const readItemFromStorage = async () => {
+    const user = JSON.parse(await AsyncStorage.getItem('user'));
+    setValue(user.id);
+  };
+  const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedDateRealisee, setSelectedDateRealisee] = useState(false);
-  const [status, setStatus] = useState('');
-  const [villes , setVilles] = useState([]);
-  const [ville, setVille] = useState('');
-
-  const [newAction, setNewAction] = useState({
-    ACTION: '',
-    lieu: '',
-    description: '',
-    datePrevue: new Date(),
-    dateRealisee: new Date(),
-    observation: ''
-  });
-  const { id } = item;
-  const [showDatePrevuePicker, setShowDatePrevuePicker] = useState(false);
-  const [showDateRealiseePicker, setShowDateRealiseePicker] = useState(false);
-
-
-  const getVilles = async () => {
-    try{
-      const response = await fetch(
-        'https://tbg.comarbois.ma/projet_api/api/projet/Villes.php',
-      );
-      
-      const data = await response.json();
-      setVilles(data);
-    }catch(e){
-      console.log(e);
-    }
-
-  };
-
+  const [searchText, setSearchText] = useState('');
+  const [searchField, setSearchField] = useState('projet');
+  const [showModal, setShowModal] = useState(false);
+  const [selectedProject, setSelectedProject] = useState({});
+  const [sortField, setSortField] = useState('');
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [latitude, setLatitude] = useState(null);
+  const [longitude, setLongitude] = useState(null);
+  const isFocused = useIsFocused();
 
   useEffect(() => {
-    const readItemFromStorage = async () => {
-      const user = JSON.parse(await AsyncStorage.getItem('user'));
-      setValue(user.id);
-      setStatus(user.status);
-
-      await getVilles();
-
-
-
-      
-    };
-    readItemFromStorage();
+    // Fetch location using Geolocation
+    Geolocation.getCurrentPosition({
+      enableHighAccuracy: true,
+      timeout: 15000,
+    })
+      .then(location => {
+        setLatitude(location.latitude);
+        setLongitude(location.longitude);
+      })
+      .catch(error => {
+        console.error(error);
+        // Handle error if location fetching fails
+      })
+      .finally(() => {
+        readItemFromStorage();
+        setLoading(false);
+      });
   }, []);
 
-  const fetchActions = async () => {
-    try {
-      const response = await fetch(`https://tbg.comarbois.ma/projet_api/api/projet/GetActions.php?project_id=${id}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const data = await response.json();
-      setActions(data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching Actions:', error);
-      setError('Error fetching Actions');
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchActions();
-  }, [id]);
+    if (latitude !== null && longitude !== null) {
+      fetchProjects();
+    }
+  }, [latitude, longitude]);
 
-  const handleReturn = () => {
-    navigation.goBack();
+  const fetchProjects = async () => {
+    setLoading(true);
+
+    const user = JSON.parse(await AsyncStorage.getItem('user'));
+    const userId = user.id;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    fetch(
+      `https://tbg.comarbois.ma/projet_api/api/projet/GetAllActions.php?userId=${userId}&q=${searchText}`,
+    )
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(json => {
+        if (!Array.isArray(json)) {
+          throw new Error('Invalid data format');
+        }
+        console.log(json);
+        setData(json);
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error(error);
+        setError(error.message);
+        setLoading(false);
+      });
   };
 
-  const handleAddAction = async () => {
-    try {
-      const response = await fetch('https://tbg.comarbois.ma/projet_api/api/projet/AddAction.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          project_id: id,
-          value,
-          ...newAction,
-          datePrevue: newAction.datePrevue.toISOString().split('T')[0],
-          dateRealisee: newAction.dateRealisee.toISOString().split('T')[0],
-          ville: ville,
-          status:status
-        })
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const data = await response.json();
-      setModalVisible(false);
-      setNewAction({
-        ACTION: '',
-        lieu: '',
-        description: '',
-        datePrevue: new Date(),
-        dateRealisee: new Date(),
-        observation: ''
-      });
-      fetchActions(); // Reload the actions after adding a new one
-    } catch (error) {
-      console.error('Error adding action:', error);
-      setError('Error adding action');
+  const handleCreateProject = () => {
+    navigation.navigate('AddAction');
+  };
+
+  const getFormattedDate = date => {
+    if (date === '0000-00-00') {
+      return date;
+    } else {
+      const options = {year: 'numeric', month: 'long', day: 'numeric'};
+      const dateObject = new Date(date);
+      dateObject.setHours(0, 0, 0, 0); // set hours, minutes, seconds, and milliseconds to 0
+      return dateObject.toLocaleDateString('fr-FR', options);
     }
   };
-
-  const renderItem = ({ item }) => (
-    <View style={styles.actionContainer}>
-      <View style={styles.labelContainer}>
-        <Text style={styles.label}>Commercial:</Text>
-        <Text style={styles.actionText}>{item.name}</Text>
-      </View>
-      <View style={styles.labelContainer}>
-        <Text style={styles.label}>Actions:</Text>
-        <Text style={styles.actionText}>{item.ACTION}</Text>
-      </View>
-      
-      <View style={styles.labelContainer}>
-        <Text style={styles.label}>Lieu:</Text>
-        <Text style={styles.actionText}>{item.lieu}</Text>
-      </View>
-      <View style={styles.labelContainer}>
-        <Text style={styles.label}>Date Creation:</Text>
-        <Text style={styles.actionText}>{item.dateCreate}</Text>
-      </View>
-      <View style={styles.labelContainer}>
-        <Text style={styles.label}>Description:</Text>
-        <Text style={styles.actionText}>{item.description}</Text>
-      </View>
-      <View style={styles.labelContainer}>
-        <Text style={styles.label}>Date Prevue:</Text>
-        <Text style={styles.actionText}>{item.datePrevue}</Text>
-      </View>
-      <View style={styles.labelContainer}>
-        <Text style={styles.label}>Date Realise:</Text>
-        <Text style={styles.actionText}>
-          {item.dateRealisee === '0000-00-00' ? 'Pas encore Realise' : item.dateRealisee}
-        </Text>
-      </View>
-      <View style={styles.labelContainer}>
-        <Text style={styles.label}>Observation:</Text>
-        <Text style={styles.actionText}>{item.observation}</Text>
-      </View>
-    </View>
-  );
 
   if (loading) {
     return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="red" />
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: 'white',
+        }}>
+        <ActivityIndicator size="large" color="#0000ff" />
       </View>
     );
   }
 
-  if (error) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.returnButton} onPress={handleReturn}>
-          <Text style={styles.returnButtonText}>Retour</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+  const handleSearch = () => {
+    fetchProjects();
+  };
+
+  const handleProjectPress = project => {
+    setSelectedProject(project);
+    setShowModal(true);
+  };
+
+  const handleEditProject = project => {
+    navigation.replace('EditAction', {project});
+  };
+
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(deg2rad(lat1)) *
+        Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+    return distance;
+  };
+
+  const deg2rad = deg => {
+    return deg * (Math.PI / 180);
+  };
+
+  const handleNearbyProjects = () => {
+    if (!latitude || !longitude) {
+      Alert.alert(
+        'Erreur',
+        "La récupération de la position n'est pas disponible",
+      );
+      navigation.navigate('Home');
+      return;
+    }
+
+    const nearbyProjects = data.filter(project => {
+      const distance = calculateDistance(
+        latitude,
+        longitude,
+        project.latitude,
+        project.longitude,
+      );
+      return distance <= 1; // Filter projects within 1 km radius
+    });
+
+    setData(nearbyProjects);
+  };
+
+  const renderProjectItem = ({item, index}) => {
+    if (index % 2 === 0) {
+      const nextItem = data[index + 1];
+
+      return (
+        <View style={styles.row}>
+          <TouchableOpacity
+            style={styles.projectCard}
+            onPress={() => handleProjectPress(item)}>
+            <View style={styles.cardContent}>
+              <Text style={styles.cardTitle}>{item.action}</Text>
+              <Text
+                style={[
+                  styles.cardText,
+                  {
+                    color:
+                      item.idClient != 0
+                        ? 'green'
+                        : item.idProjet != 0
+                        ? 'blue'
+                        : 'orange',
+                  },
+                ]}>
+                {item.action_src}
+              </Text>
+
+              <Text style={styles.cardText}>
+                {getFormattedDate(item.datePrevue)}
+              </Text>
+              <View style={styles.cardActions}>
+                <TouchableOpacity
+                  style={styles.cardButton}
+                  onPress={() => handleEditProject(item)}>
+                  <Image
+                    source={require('../assets/modifier.png')}
+                    style={styles.logo}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.cardButton}
+                  onPress={() =>
+                    navigation.navigate('IMG', {images: item.images, actionId : item.id})
+                  }>
+                  <Image
+                    source={require('../assets/imagee.png')}
+                    style={styles.logo}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+          {nextItem && (
+            <TouchableOpacity
+              style={styles.projectCard}
+              onPress={() => handleProjectPress(nextItem)}>
+              <View style={styles.cardContent}>
+                <Text style={styles.cardTitle}>{nextItem.action}</Text>
+                <Text
+                  style={[
+                    styles.cardText,
+                    {
+                      color:
+                        nextItem.idClient != 0
+                          ? 'green'
+                          : nextItem.idProjet != 0
+                          ? 'blue'
+                          : 'orange',
+                    },
+                  ]}>
+                  {nextItem.action_src}
+                </Text>
+
+                <Text style={styles.cardText}>
+                  {getFormattedDate(nextItem.datePrevue)}
+                </Text>
+                <View style={styles.cardActions}>
+                  <TouchableOpacity
+                    style={styles.cardButton}
+                    onPress={() => handleEditProject(nextItem)}>
+                    <Image
+                      source={require('../assets/modifier.png')}
+                      style={styles.logo}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.cardButton}
+                    onPress={() =>
+                      navigation.navigate('IMG', {images: nextItem.images, actionId : nextItem.id})
+                    }>
+                    <Image
+                      source={require('../assets/imagee.png')}
+                      style={styles.logo}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+    }
+    return null;
+  };
 
   return (
-     <View style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.titleContainer}>
-        <Text style={styles.title}>Actions du Projet</Text>
-        <Text style={styles.actionsCount}>{actions.length} actions</Text>
-      </View>
-      {actions && actions.length === 0 ? (
-        <Text style={styles.noActionsText}>Pas d'actions disponibles</Text>
-      ) : (
-        <FlatList
-          data={actions}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={renderItem}
-          contentContainerStyle={styles.flatListContent}
-        />
-      )}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.returnButton} onPress={handleReturn}>
-          <Text style={styles.returnButtonText}>Retour</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
-          <Text style={styles.addButtonText}>Ajouter Action</Text>
-        </TouchableOpacity>
+        <Text style={styles.title}>LISTE DES ACTIONS</Text>
       </View>
 
+      <View style={styles.summaryContainer}>
+        <Text style={styles.summaryText}>Nombre de actions: {data.length}</Text>
+        <TouchableOpacity
+          style={styles.createButton}
+          onPress={handleCreateProject}>
+          <Text style={styles.createButtonText}>Créer une action</Text>
+        </TouchableOpacity>
+      </View>
+      <FlatList
+        data={data}
+        renderItem={renderProjectItem}
+        keyExtractor={item => item.id.toString()}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        contentContainerStyle={styles.listContent}
+      />
       <Modal
         animationType="slide"
         transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Ajouter une action</Text>
-            <Picker
-              selectedValue={newAction.ACTION}
-              style={styles.input}
-              onValueChange={(itemValue, itemIndex) =>
-                setNewAction({ ...newAction, ACTION: itemValue })
-              }
-            >
-              <Picker.Item label="_Selectioner une action __" value="" />
-              <Picker.Item label="Prospecter" value="Prospecter" />
-              <Picker.Item label="Appeler" value="Appeler" />
-              <Picker.Item label="Visiter" value="Visiter" />
-              <Picker.Item label="Relancer" value="Relancer" />
-              <Picker.Item label="Envoyer Devis" value="Envoyer Devis" />
-              <Picker.Item label="Demander Reglement" value="Demander Reglement" />
-              <Picker.Item label="Note" value="Note" />
-            </Picker>
-            <TextInput
-              style={styles.input}
-              placeholder="Lieu"
-              value={newAction.lieu}
-              onChangeText={(text) => setNewAction({ ...newAction, lieu: text })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Description"
-              value={newAction.description}
-              onChangeText={(text) => setNewAction({ ...newAction, description: text })}
-            />
-            <Text style={styles.label}>Date Prevue:</Text>
-            <TouchableOpacity style={styles.input} onPress={() => setShowDatePrevuePicker(true)}>
-              <Text>{newAction.datePrevue.toLocaleDateString()}</Text>
+        visible={showModal}
+        onRequestClose={() => setShowModal(false)}>
+        <View style={styles.modalBackground}>
+          <View style={styles.modalContainer}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowModal(false)}>
+              <Text style={styles.modalButtonText}>X</Text>
             </TouchableOpacity>
-            {showDatePrevuePicker && (
-              <DateTimePicker
-                value={newAction.datePrevue}
-                mode="date"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowDatePrevuePicker(false);
-                  if (selectedDate) {
-                    setNewAction({ ...newAction, datePrevue: selectedDate });
-                  }
-                }}
-              />
-            )}
+            <Text style={styles.modalTitle}>Details Action</Text>
+            <View style={styles.labelContainer}>
+              <Text style={styles.label}>ID:</Text>
+              <Text style={styles.modalText}>{selectedProject.id}</Text>
+            </View>
+            <View style={styles.labelContainer}>
+              <Text style={styles.label}>Auteur:</Text>
+              <Text style={styles.modalText}>{selectedProject.name}</Text>
+            </View>
+            <View style={styles.labelContainer}>
+              <Text style={styles.label}>Action:</Text>
+              <Text style={styles.modalText}>{selectedProject.action}</Text>
+            </View>
+            <View style={styles.labelContainer}>
+              <Text style={styles.label}>Source:</Text>
+              <Text style={styles.modalText}>{selectedProject.action_src}</Text>
+            </View>
 
-            <Text style={styles.label}>Ville:</Text>
-            <Dropdown
-                data={villes}
-                valueField={'idVille'}
-                labelField={'villeLabel'}
-                value={ville}
-                onChange={item => setVille(item.idVille)}
-                placeholder={'Selectioner une ville'}
-                search
-                searchPlaceholder='Rechercher une ville'
-                style={styles.dropdown}
-                searchField="villeLabel"
-                inputSearchStyle={{color: 'black'}}
-              />
-
-            <Text style={styles.label}>Date Realisee:</Text>
-            <TouchableOpacity style={styles.input} onPress={() => setShowDateRealiseePicker(true)}>
-              <Text>{selectedDateRealisee ? newAction.dateRealisee.toLocaleDateString() : ''}</Text>
-            </TouchableOpacity>
-            {showDateRealiseePicker && (
-              <DateTimePicker
-                value={newAction.dateRealisee}
-                mode="date"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowDateRealiseePicker(false);
-                  setSelectedDateRealisee(true);
-                  if (selectedDate) {
-                    setNewAction({ ...newAction, dateRealisee: selectedDate });
-                  }
-                }}
-              />
+            <View style={styles.labelContainer}>
+              <Text style={styles.label}>Date Prevue:</Text>
+              <Text style={styles.modalText}>
+                {getFormattedDate(selectedProject.datePrevue)}
+              </Text>
+            </View>
+            {selectedProject.dateRealisee != '0000-00-00' && (
+              <View style={styles.labelContainer}>
+                <Text style={styles.label}>Date Prevue:</Text>
+                <Text style={styles.modalText}>
+                  {getFormattedDate(selectedProject.dateRealisee)}
+                </Text>
+              </View>
             )}
-            
-            <TextInput
-              style={styles.input}
-              placeholder="Observation"
-              value={newAction.observation}
-              onChangeText={(text) => setNewAction({ ...newAction, observation: text })}
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalretourButton} onPress={() => setModalVisible(false)}>
-                <Text style={styles.modalButtonText}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.modalButton} onPress={handleAddAction}>
-                <Text style={styles.modalButtonText}>Ajouter</Text>
-              </TouchableOpacity>
+            <View style={styles.labelContainer}>
+              <Text style={styles.label}>Observation:</Text>
+              <Text style={styles.modalText}>
+                {selectedProject.observation}
+              </Text>
             </View>
           </View>
         </View>
@@ -320,158 +371,179 @@ const ActionsScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor:'white',
+    padding: 16,
+    backgroundColor: '#fff',
+  },
+  rsText: {
+    color: 'green',
+  },
+  nouveauText: {
+    color: 'orange',
   },
   titleContainer: {
-      alignItems: 'center',
-      paddingVertical: 20,
-      borderBottomWidth: 1,
-      borderBottomColor: '#ccc',
-    },
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: 'black',
   },
-  actionsCount: {
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 2,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginBottom: 16,
+    elevation: 2,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    marginRight: 16,
+  },
+  searchButton: {
+    marginLeft: 8,
+    padding: 8,
+  },
+  summaryContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  summaryText: {
     fontSize: 16,
     color: 'black',
   },
-  actionContainer: {
-    marginBottom: 20,
-    padding: 15,
-    backgroundColor: 'white',
-    borderRadius: 10,
-    shadowColor: 'black',
-    elevation: 4 ,
+  createButton: {
+    padding: 8,
+    backgroundColor: 'green',
+    borderRadius: 4,
   },
-  labelContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
+  nearbyButton: {
+    backgroundColor: 'blue',
+    padding: 10,
+    borderRadius: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 10,
   },
-  label: {
-    textAlign: 'left',
+  createButtonText: {
+    color: 'white',
     fontWeight: 'bold',
-    color:'black',
   },
-  actionText: {
-    flex: 1,
-    textAlign: 'right',
-  },
-  loaderContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    fontSize: 18,
-    color: 'red',
-    marginBottom: 20,
-  },
-  returnButton: {
-    backgroundColor: 'red',
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 10,
-  },
-  returnButtonText: {
+  nearbyButtonText: {
     color: 'white',
-    textAlign: 'center',
-    fontSize: 16,
+    fontWeight: 'bold',
   },
-  addButton: {
-    backgroundColor: 'green',
-    padding: 15,
-    borderRadius: 10,
-    marginTop: 10,
-  },
-  addButtonText: {
-    color: 'white',
-    textAlign: 'center',
-    fontSize: 16,
-  },
-  buttonContainer: {
+  row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginBottom: 1,
   },
-  noActionsText: {
-    fontSize: 16,
-    color: 'gray',
-    textAlign: 'center',
+  projectCard: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 8,
+    backgroundColor: 'white',
+    elevation: 10,
+    marginHorizontal: 5,
   },
-  flatListContent: {
-    paddingBottom: 20,
+  cardContent: {
+    marginBottom: 8,
   },
-  modalContainer: {
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    marginBottom: 3,
+    color: 'black',
+  },
+  cardText: {
+    fontSize: 12,
+    marginBottom: 3,
+    color: 'black',
+  },
+  cardActions: {
+    flexDirection: 'row',
+  },
+  cardButton: {
+    padding: 5,
+  },
+  listContent: {
+    paddingBottom: 16,
+  },
+  separator: {
+    height: 10,
+  },
+  modalBackground: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  modalContent: {
-    width: '80%',
-    backgroundColor: 'white',
+  modalContainer: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 0,
+    paddingBottom: 16,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 1,
+    right: 1,
     padding: 10,
-    borderRadius: 10,
-    alignItems: 'center',
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 2,
+    marginBottom: 16,
+    padding: 20,
     color: 'black',
   },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: 'gray',
-    marginBottom: 10,
-    padding: 10,
-    borderRadius: 5,
+  modalText: {
+    fontSize: 16,
+    marginBottom: 6,
+    width: '65%',
   },
-  modalButtons: {
+  modalButtonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
+    justifyContent: 'center',
+    marginTop: 10,
   },
   modalButton: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 10,
-    backgroundColor: 'green',
-    margin: 5,
+    backgroundColor: 'white',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  modalretourButton: {
-      flex: 1,
-      padding: 15,
-      borderRadius: 10,
-      backgroundColor: 'red',
-      margin: 5,
-    },
   modalButtonText: {
-    color: 'white',
-    textAlign: 'center',
-    fontSize: 16,
-  },
-  dropdown: {
-    width: '95%',
-    height: 50,
-    backgroundColor: 'transparent',
-    borderColor: 'gray',
-    borderWidth: 0.5,
-    borderRadius: 5,
-    marginBottom: 10,
-    padding: 5,
     color: 'black',
+    fontSize: 25,
+  },
+  labelContainer: {
+    flexDirection: 'row',
+    marginBottom: 5,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: 'black',
+    width: 130,
+  },
+  logo: {
+    width: 30,
+    height: 30,
   },
 });
 
-export default ActionsScreen;
+export default ListProjectScreen;

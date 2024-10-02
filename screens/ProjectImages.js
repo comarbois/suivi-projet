@@ -1,35 +1,23 @@
+import { id } from 'date-fns/locale';
 import React, { useEffect, useState } from 'react';
-import { View, Image, FlatList, StyleSheet, ActivityIndicator, Text, TouchableOpacity, Modal } from 'react-native';
+import { View, Image, FlatList, StyleSheet, ActivityIndicator, Text, TouchableOpacity, Modal, ImageBackground } from 'react-native';
 
 const ProjectImages = ({ route, navigation }) => {
-  const { item } = route.params;
-  const [images, setImages] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { images , projetId, actionId} = route.params;
+  const [img, setImg] = useState(images);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedImageUri, setSelectedImageUri] = useState(null);
-  const { id } = item;
 
-  useEffect(() => {
-    fetch(`https://tbg.comarbois.ma/projet_api/api/projet/Getimg?project_id=${id}`)
-      .then(response => response.json())
-      .then(data => {
-        setImages(data);
-        setLoading(false);
-      })
-      .catch(error => {
-        console.error('Error fetching images:', error);
-        setError('Error fetching images');
-        setLoading(false);
-      });
-  }, [id]);
+  
 
   const handleReturn = () => {
     navigation.goBack();
   };
 
   const handleAddPhotos = () => {
-    navigation.navigate('TakePhoto', { projectId: id });
+    navigation.navigate('TakePhoto', { projetId , actionId});
   };
 
   const handleImagePress = (uri) => {
@@ -42,6 +30,10 @@ const ProjectImages = ({ route, navigation }) => {
     setSelectedImageUri(null);
   };
 
+  useEffect(() => {
+    console.log('images', images);
+  }, []);
+  
   if (loading) {
     return (
       <View style={styles.loaderContainer}>
@@ -71,19 +63,19 @@ const ProjectImages = ({ route, navigation }) => {
       ) : (
         <FlatList
           data={images}
-          keyExtractor={(item, index) => index.toString()}
+          keyExtractor={(item) => item.id}
+          
           renderItem={({ item }) => (
             <TouchableOpacity onPress={() => handleImagePress(`https://tbg.comarbois.ma/${item.file}`)}>
               <View style={styles.imageContainer}>
                 <Image
                   source={{ uri: `https://tbg.comarbois.ma/${item.file}` }}
-                  // source={{ uri: `http://10.0.0.34/tbg-new/data/${item.file}` }}
                   style={styles.image}
+                  loadingIndicatorSource={<ActivityIndicator size="large" color="red" />}
                 />
               </View>
             </TouchableOpacity>
           )}
-          contentContainerStyle={styles.flatListContent}
         />
       )}
       <View style={styles.buttonContainer}>
@@ -127,7 +119,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 10,
     color: 'black',
   },
   flatListContent: {
@@ -135,7 +127,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   imageContainer: {
-    margin: 10,
+    margin: 1,
   },
   image: {
     width: 300,

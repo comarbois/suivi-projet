@@ -8,7 +8,6 @@ const HomeScreen = ({route, navigation}) => {
   const [value, setValue] = useState(0);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
-  useEffect(() => console.log(' value est ' + value), [value]);
 
   const readItemFromStorage = async () => {
     setLoading(true);
@@ -42,7 +41,7 @@ const HomeScreen = ({route, navigation}) => {
   };
 
   const handleCreateProject = () => {
-    navigation.navigate('CreateProject');
+    navigation.navigate('List');
   };
 
   const handleListProject = () => {
@@ -89,13 +88,13 @@ const HomeScreen = ({route, navigation}) => {
                 source={require('../assets/creationprojet.png')}
                 style={styles.buttonImage}
               />
-              <Text style={styles.buttonText}>Créer Projet</Text>
+              <Text style={styles.buttonText}>Projets / Chantiers</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.button}
               disabled={status == 'CC'}
-              onPress={handleListProject}>
+              onPress={() => navigation.navigate('Actions')}>
               {status == 'CC' && (
                 <View
                   style={{
@@ -111,25 +110,25 @@ const HomeScreen = ({route, navigation}) => {
                 source={require('../assets/listeprojet.png')}
                 style={styles.buttonImage}
               />
-              <Text style={styles.buttonText}>Liste Projets</Text>
+              <Text style={styles.buttonText}>Actions</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.row}>
-            <TouchableOpacity style={styles.button} onPress={handleTakePhoto}>
+          <TouchableOpacity
+              style={styles.button}
+              onPress={() => navigation.navigate('Itiniraires')}>
               <Image
-                source={require('../assets/prendrephoto.png')}
+                source={require('../assets/itineraires.png')}
                 style={styles.buttonImage}
               />
-              <Text style={styles.buttonText}>Geolocalisation</Text>
+              <Text style={styles.buttonText}>Itineraires</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.button, {position: 'relative'}]}
               onPress={handleViewMap}>
-              {/* <View style={{position:'absolute', width:"125%" , height:'140%', backgroundColor:'#20212457', zIndex:100, borderRadius:5}}>
-
-          </View> */}
+            
               <Image
                 source={require('../assets/map.png')}
                 style={styles.buttonImage}
@@ -139,15 +138,14 @@ const HomeScreen = ({route, navigation}) => {
           </View>
 
           <View style={styles.row}>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => navigation.navigate('Itiniraires')}>
+          <TouchableOpacity style={styles.button} onPress={handleTakePhoto}>
               <Image
-                source={require('../assets/itineraires.png')}
+                source={require('../assets/prendrephoto.png')}
                 style={styles.buttonImage}
               />
-              <Text style={styles.buttonText}>Itineraires</Text>
+              <Text style={styles.buttonText}>{status == 'CC' ? 'Actions' : 'Geolocalisation'}</Text>
             </TouchableOpacity>
+            
 
             <TouchableOpacity
               style={styles.button}
@@ -200,7 +198,8 @@ const styles = StyleSheet.create({
   button: {
     flex: 1,
     backgroundColor: 'white',
-    padding: 16,
+    paddingVertical: 16,
+    paddingHorizontal:4,
     borderRadius: 4,
     alignItems: 'center',
     marginHorizontal: 8,
@@ -214,7 +213,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: 'black',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   logoutButton: {

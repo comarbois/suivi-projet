@@ -168,7 +168,7 @@ const ItinirairesScreen = () => {
               <Text style={item.type == 'chantier' ? styles.rsText : styles.nouveauText}>{item.type?.toUpperCase()}</Text>
 
               <Text style={styles.cardText}>
-                {item.adresse.slice(0, 100)}...
+                {item.adresse?.slice(0, 100)}...
               </Text>
               <Text style={styles.cardText}>
                 {getFormattedDate(item.dateAction)}
